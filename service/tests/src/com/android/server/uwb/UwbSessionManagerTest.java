@@ -1818,6 +1818,26 @@ public class UwbSessionManagerTest {
         return uwbSession;
     }
 
+    private UwbSession initUwbSessionForNonSystemAppNotInFgInChain() throws Exception {
+        when(mUwbInjector.isSystemApp(UID_2, PACKAGE_NAME_2)).thenReturn(false);
+        when(mUwbInjector.isForegroundAppOrService(UID_2, PACKAGE_NAME_2))
+                .thenReturn(false);
+
+        // simulate system app triggered the request on behalf of a fg app in fg.
+        AttributionSource attributionSource = new AttributionSource.Builder(UID)
+                .setPackageName(PACKAGE_NAME)
+                .setNext(new AttributionSource.Builder(UID_2)
+                        .setPackageName(PACKAGE_NAME_2)
+                        .build())
+                .build();
+
+        UwbSession uwbSession = setUpUwbSessionForExecution(attributionSource);
+        mUwbSessionManager.initSession(attributionSource, uwbSession.getSessionHandle(),
+                TEST_SESSION_ID, TEST_SESSION_TYPE, FiraParams.PROTOCOL_NAME,
+                uwbSession.getParams(), uwbSession.getIUwbRangingCallbacks(), TEST_CHIP_ID);
+        return uwbSession;
+    }
+
     @Test
     public void testOpenRangingWithNonSystemAppInFgInChain() throws Exception {
         initUwbSessionForNonSystemAppInFgInChain();
@@ -1877,7 +1897,7 @@ public class UwbSessionManagerTest {
         // Expect session stop.
         mTestLooper.dispatchAll();
         verify(mUwbSessionNotificationManager).onRangingStoppedWithApiReasonCode(
-                eq(uwbSession), eq(RangingChangeReason.SYSTEM_POLICY));
+                eq(uwbSession), eq(RangingChangeReason.SYSTEM_POLICY), any());
         verify(mUwbMetrics).longRangingStopEvent(eq(uwbSession));
     }
 
@@ -1908,6 +1928,45 @@ public class UwbSessionManagerTest {
         // reconfigured (to disable the ranging data notifications).
         mOnUidImportanceListenerArgumentCaptor.getValue().onUidImportance(
                 UID_2, IMPORTANCE_BACKGROUND);
+        mTestLooper.dispatchAll();
+        ArgumentCaptor<Params> paramsArgumentCaptor = ArgumentCaptor.forClass(Params.class);
+        verify(mUwbConfigurationManager).setAppConfigurations(
+                eq(TEST_SESSION_ID), paramsArgumentCaptor.capture(), eq(TEST_CHIP_ID));
+        FiraRangingReconfigureParams firaParams =
+                (FiraRangingReconfigureParams) paramsArgumentCaptor.getValue();
+        assertThat(firaParams.getRangeDataNtfConfig()).isEqualTo(
+                FiraParams.RANGE_DATA_NTF_CONFIG_DISABLE);
+        verify(mUwbSessionNotificationManager, never()).onRangingReconfigured(eq(uwbSession));
+
+        // Verify the timer is not setup.
+        verify(mAlarmManager, never()).setExact(
+                anyInt(), anyLong(), eq(UwbSession.NON_PRIVILEGED_BG_APP_TIMER_TAG),
+                any(), any());
+    }
+
+    @Test
+    public void testOpenRangingWithNonSystemAppInFgInChain_StartInBg_WhenBgRangingEnabled()
+            throws Exception {
+        when(mDeviceConfigFacade.isBackgroundRangingEnabled()).thenReturn(true);
+        UwbSession uwbSession = initUwbSessionForNonSystemAppNotInFgInChain();
+
+        // Verify that an OPEN_RANGING message was scheduled.
+        assertThat(mTestLooper.nextMessage().what).isEqualTo(SESSION_OPEN_RANGING);
+
+        // Start Ranging
+        when(mNativeUwbManager.startRanging(eq(TEST_SESSION_ID), anyString()))
+                .thenReturn((byte) UwbUciConstants.STATUS_CODE_OK);
+        doReturn(UwbUciConstants.UWB_SESSION_STATE_IDLE,
+                UwbUciConstants.UWB_SESSION_STATE_ACTIVE).when(uwbSession).getSessionState();
+        mUwbSessionManager.startRanging(
+                uwbSession.getSessionHandle(), uwbSession.getParams());
+        mTestLooper.dispatchAll();
+
+        verify(mUwbSessionNotificationManager).onRangingStarted(eq(uwbSession), any());
+        verify(mUwbMetrics).longRangingStartEvent(
+                eq(uwbSession), eq(UwbUciConstants.STATUS_CODE_OK));
+
+        // Ensure that we reconfigure the session immediately to disable range data notifications.
         mTestLooper.dispatchAll();
         ArgumentCaptor<Params> paramsArgumentCaptor = ArgumentCaptor.forClass(Params.class);
         verify(mUwbConfigurationManager).setAppConfigurations(
@@ -2406,7 +2465,7 @@ public class UwbSessionManagerTest {
         mTestLooper.dispatchNext();
         verify(mUwbSessionNotificationManager)
                 .onRangingStoppedWithApiReasonCode(eq(uwbSession),
-                        eq(RangingChangeReason.SYSTEM_POLICY));
+                        eq(RangingChangeReason.SYSTEM_POLICY), any());
         verify(mUwbMetrics).longRangingStopEvent(eq(uwbSession));
     }
 
@@ -3117,7 +3176,7 @@ public class UwbSessionManagerTest {
                 any(), eq(IUwbAdapter.RANGING_SESSION_START_THRESHOLD_MS));
         verify(mUwbSessionNotificationManager)
                 .onRangingStoppedWithApiReasonCode(eq(uwbSession),
-                        eq(RangingChangeReason.LOCAL_API));
+                        eq(RangingChangeReason.LOCAL_API), any());
         verify(mUwbMetrics).longRangingStopEvent(eq(uwbSession));
     }
 
@@ -3441,7 +3500,7 @@ public class UwbSessionManagerTest {
                 any(), eq(TEST_RANGING_INTERVAL_MS * 4 * 11));
         verify(mUwbSessionNotificationManager)
                 .onRangingStoppedWithApiReasonCode(eq(uwbSession),
-                        eq(RangingChangeReason.LOCAL_API));
+                        eq(RangingChangeReason.LOCAL_API), any());
         verify(mUwbMetrics).longRangingStopEvent(eq(uwbSession));
     }
 

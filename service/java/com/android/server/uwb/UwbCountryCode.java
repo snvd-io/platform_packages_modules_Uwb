@@ -58,7 +58,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.stream.Collectors;
 
 /**
@@ -87,6 +87,10 @@ public class UwbCountryCode {
     // exact because all we care about is what country the user is in.
     private static final float DISTANCE_BETWEEN_UPDATES_METERS = 5_000.0f;
 
+    // The last SIM slot index, used when the slot is not known, so that the corresponding
+    // country code has the lowest priority (in the sorted mTelephonyCountryCodeInfoPerSlot map).
+    private static final int LAST_SIM_SLOT_INDEX = Integer.MAX_VALUE;
+
     private final Context mContext;
     private final Handler mHandler;
     private final TelephonyManager mTelephonyManager;
@@ -98,7 +102,7 @@ public class UwbCountryCode {
     private final Set<CountryCodeChangedListener> mListeners = new ArraySet<>();
 
     private Map<Integer, TelephonyCountryCodeSlotInfo> mTelephonyCountryCodeInfoPerSlot =
-            new ConcurrentHashMap();
+            new ConcurrentSkipListMap();
     private String mWifiCountryCode = null;
     private String mLocationCountryCode = null;
     private String mOverrideCountryCode = null;
@@ -186,7 +190,7 @@ public class UwbCountryCode {
                     public void onReceive(Context context, Intent intent) {
                         int slotIdx = intent.getIntExtra(
                                 SubscriptionManager.EXTRA_SLOT_INDEX,
-                                SubscriptionManager.INVALID_SIM_SLOT_INDEX);
+                                LAST_SIM_SLOT_INDEX);
                         String countryCode = intent.getStringExtra(
                                 TelephonyManager.EXTRA_NETWORK_COUNTRY);
                         String lastKnownCountryCode = intent.getStringExtra(
@@ -215,21 +219,33 @@ public class UwbCountryCode {
                 + mUwbInjector.getOemDefaultCountryCode());
         List<SubscriptionInfo> subscriptionInfoList =
                 mSubscriptionManager.getActiveSubscriptionInfoList();
-        if (subscriptionInfoList == null) return; // No sim
-        Set<Integer> slotIdxs = subscriptionInfoList
-                .stream()
-                .map(SubscriptionInfo::getSimSlotIndex)
-                .collect(Collectors.toSet());
-        for (Integer slotIdx : slotIdxs) {
-            String countryCode;
-            try {
-                countryCode = mTelephonyManager.getNetworkCountryIso(slotIdx);
-            } catch (IllegalArgumentException e) {
-                Log.e(TAG, "Failed to get country code for slot id:" + slotIdx, e);
-                continue;
+        if (subscriptionInfoList != null && !subscriptionInfoList.isEmpty()) {
+            Set<Integer> slotIdxs = subscriptionInfoList
+                    .stream()
+                    .map(SubscriptionInfo::getSimSlotIndex)
+                    .collect(Collectors.toSet());
+            for (Integer slotIdx : slotIdxs) {
+                String countryCode;
+                try {
+                    countryCode = mTelephonyManager.getNetworkCountryIso(slotIdx);
+                } catch (IllegalArgumentException e) {
+                    Log.e(TAG, "Failed to get country code for slot id:" + slotIdx, e);
+                    continue;
+                }
+                setTelephonyCountryCodeAndLastKnownCountryCode(slotIdx, countryCode, null);
             }
-            setTelephonyCountryCodeAndLastKnownCountryCode(slotIdx, countryCode, null);
+        } else {
+            // Fetch and configure the networkCountryIso() when the subscriptionInfoList is either
+            // null or empty. This is done only when the country code is valid.
+            if (mUwbInjector.getFeatureFlags().useNetworkCountryIso()) {
+                String countryCode = mTelephonyManager.getNetworkCountryIso();
+                if (isValid(countryCode)) {
+                    setTelephonyCountryCodeAndLastKnownCountryCode(
+                            LAST_SIM_SLOT_INDEX, countryCode, null);
+                }
+            }
         }
+
         if (mUwbInjector.getDeviceConfigFacade().isLocationUseForCountryCodeEnabled() &&
                 mUwbInjector.isGeocoderPresent()) {
             setCountryCodeFromGeocodingLocation(

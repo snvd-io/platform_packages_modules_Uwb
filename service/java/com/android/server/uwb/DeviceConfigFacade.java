@@ -90,6 +90,8 @@ public class DeviceConfigFacade {
     private boolean mCccRangingStoppedParamsSendEnabled;
     // Flag to enable the UWB Initiation time as an absolute time, for a CCC ranging session.
     private boolean mCccAbsoluteUwbInitiationTimeEnabled;
+    // Flag to disable UWB until first toggle
+    private boolean mUwbDisabledUntilFirstToggle;
     // Flag to interpret CCC supported sync codes value as little endian
     private boolean mCccSupportedSyncCodesLittleEndian;
     private boolean mPersistentCacheUseForCountryCodeEnabled;
@@ -269,6 +271,13 @@ public class DeviceConfigFacade {
                 "ccc_absolute_uwb_initiation_time_enabled",
                 mContext.getResources().getBoolean(R.bool.ccc_absolute_uwb_initiation_time_enabled)
         );
+
+        mUwbDisabledUntilFirstToggle = DeviceConfig.getBoolean(
+                DeviceConfig.NAMESPACE_UWB,
+                "uwb_disabled_until_first_toggle",
+                mContext.getResources().getBoolean(R.bool.uwb_disabled_until_first_toggle)
+        );
+
 
         mCccSupportedSyncCodesLittleEndian = DeviceConfig.getBoolean(
                 DeviceConfig.NAMESPACE_UWB,
@@ -545,6 +554,15 @@ public class DeviceConfigFacade {
      */
     public boolean isCccAbsoluteUwbInitiationTimeEnabled() {
         return mCccAbsoluteUwbInitiationTimeEnabled;
+    }
+
+    /**
+     * Returns whether to disable uwb until first toggle or not.
+     * If enabled, UWB will remain disabled on boot until the user toggles UWB on for the
+     * first time.
+     */
+    public boolean isUwbDisabledUntilFirstToggle() {
+        return mUwbDisabledUntilFirstToggle;
     }
 
     /**

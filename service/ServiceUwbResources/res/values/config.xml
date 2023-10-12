@@ -182,6 +182,11 @@
     configured for the CCC ranging session. -->
     <bool name = "ccc_absolute_uwb_initiation_time_enabled">false</bool>
 
+    <!-- Whether to disable uwb until first toggle or not.
+    If enabled, UWB will remain disabled on boot until the user toggles UWB on for the first time.
+    -->
+    <bool name = "uwb_disabled_until_first_toggle">false</bool>
+
     <!-- Whether to interpret CCC supported sync codes value as little endian.
     If enabled, CCC supported sync codes value will be interpreted as little endian.
     -->

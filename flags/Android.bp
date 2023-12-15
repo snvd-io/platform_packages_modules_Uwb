@@ -68,3 +68,20 @@ rust_aconfig_library {
         "//external/uwb:__subpackages__",
     ],
 }
+
+rust_aconfig_library {
+    name: "libuwb_aconfig_flags_rust_test",
+    crate_name: "uwb_aconfig_flags_rust_test",
+    aconfig_declarations: "uwb_aconfig_flags",
+    min_sdk_version: "33",
+    apex_available: [
+        "//apex_available:platform",
+        "com.android.uwb",
+    ],
+    host_supported: true,
+    visibility: [
+        "//packages/modules/Uwb:__subpackages__",
+        "//external/uwb:__subpackages__",
+    ],
+    mode: "test",
+}

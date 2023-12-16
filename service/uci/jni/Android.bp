@@ -64,6 +64,7 @@ rust_test {
                 "libcutils",
                 "liblog",
                 "libutils",
+                "libc++",
             ],
         },
     },

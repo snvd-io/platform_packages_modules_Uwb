@@ -43,6 +43,7 @@ import static com.android.server.uwb.config.CapabilityParam.DS_TWR_DEFERRED;
 import static com.android.server.uwb.config.CapabilityParam.DS_TWR_NON_DEFERRED;
 import static com.android.server.uwb.config.CapabilityParam.DT_ANCHOR;
 import static com.android.server.uwb.config.CapabilityParam.DT_TAG;
+import static com.android.server.uwb.config.CapabilityParam.DT_TAG_BLOCK_SKIPPING;
 import static com.android.server.uwb.config.CapabilityParam.DYNAMIC_STS;
 import static com.android.server.uwb.config.CapabilityParam.DYNAMIC_STS_RESPONDER_SPECIFIC_SUBSESSION_KEY;
 import static com.android.server.uwb.config.CapabilityParam.ESS_TWR_NON_DEFERRED;
@@ -58,6 +59,7 @@ import static com.android.server.uwb.config.CapabilityParam.OWR_DL_TDOA;
 import static com.android.server.uwb.config.CapabilityParam.OWR_UL_TDOA;
 import static com.android.server.uwb.config.CapabilityParam.PROVISIONED_STS;
 import static com.android.server.uwb.config.CapabilityParam.PROVISIONED_STS_RESPONDER_SPECIFIC_SUBSESSION_KEY;
+import static com.android.server.uwb.config.CapabilityParam.PSDU_LENGTH_SUPPORT;
 import static com.android.server.uwb.config.CapabilityParam.RANGE_DATA_NTF_CONFIG_DISABLE;
 import static com.android.server.uwb.config.CapabilityParam.RANGE_DATA_NTF_CONFIG_ENABLE;
 import static com.android.server.uwb.config.CapabilityParam.RANGE_DATA_NTF_CONFIG_ENABLE_AOA_EDGE_TRIG;
@@ -89,6 +91,7 @@ import static com.android.server.uwb.config.CapabilityParam.SUPPORTED_DEVICE_ROL
 import static com.android.server.uwb.config.CapabilityParam.SUPPORTED_DEVICE_ROLES_VER_2_0;
 import static com.android.server.uwb.config.CapabilityParam.SUPPORTED_DEVICE_TYPE_VER_2_0;
 import static com.android.server.uwb.config.CapabilityParam.SUPPORTED_DIAGNOSTICS;
+import static com.android.server.uwb.config.CapabilityParam.SUPPORTED_DT_TAG_BLOCK_SKIPPING_2_0;
 import static com.android.server.uwb.config.CapabilityParam.SUPPORTED_DT_TAG_MAX_ACTIVE_RR_2_0;
 import static com.android.server.uwb.config.CapabilityParam.SUPPORTED_EXTENDED_MAC_ADDRESS_VER_1_0;
 import static com.android.server.uwb.config.CapabilityParam.SUPPORTED_EXTENDED_MAC_ADDRESS_VER_2_0;
@@ -109,6 +112,7 @@ import static com.android.server.uwb.config.CapabilityParam.SUPPORTED_MIN_RANGIN
 import static com.android.server.uwb.config.CapabilityParam.SUPPORTED_MIN_SLOT_DURATION_RSTU;
 import static com.android.server.uwb.config.CapabilityParam.SUPPORTED_MULTI_NODE_MODES_VER_1_0;
 import static com.android.server.uwb.config.CapabilityParam.SUPPORTED_MULTI_NODE_MODES_VER_2_0;
+import static com.android.server.uwb.config.CapabilityParam.SUPPORTED_PSDU_LENGTH_2_0;
 import static com.android.server.uwb.config.CapabilityParam.SUPPORTED_RANGE_DATA_NTF_CONFIG;
 import static com.android.server.uwb.config.CapabilityParam.SUPPORTED_RANGING_METHOD_VER_1_0;
 import static com.android.server.uwb.config.CapabilityParam.SUPPORTED_RANGING_METHOD_VER_2_0;
@@ -134,8 +138,11 @@ import static com.android.server.uwb.config.CapabilityParam.UWB_INITIATION_TIME;
 
 import android.util.Log;
 
+import com.android.server.uwb.UwbInjector;
+
 import com.google.uwb.support.base.FlagEnum;
 import com.google.uwb.support.base.Params;
+import com.google.uwb.support.base.ProtocolVersion;
 import com.google.uwb.support.fira.FiraParams;
 import com.google.uwb.support.fira.FiraParams.BprfParameterSetCapabilityFlag;
 import com.google.uwb.support.fira.FiraParams.CcConstraintLengthCapabilitiesFlag;
@@ -160,10 +167,22 @@ import java.util.stream.IntStream;
 public class FiraDecoder extends TlvDecoder {
     private static final String TAG = "FiraDecoder";
 
+    private final UwbInjector mUwbInjector;
+
+    public FiraDecoder(UwbInjector uwbInjector) {
+        mUwbInjector = uwbInjector;
+    }
+
     @Override
-    public <T extends Params> T getParams(TlvDecoderBuffer tlvs, Class<T> paramType) {
+    public <T extends Params> T getParams(TlvDecoderBuffer tlvs, Class<T> paramType,
+            ProtocolVersion protocolVersion) {
         if (FiraSpecificationParams.class.equals(paramType)) {
-            return (T) getFiraSpecificationParamsFromTlvBuffer(tlvs);
+            // The "protocolVersion" is always expected to be of type "FiraProtocolVersion" here,
+            // but in case it's not, we use a backup value of "PROTOCOL_VERSION_1_1".
+            FiraProtocolVersion uwbsFiraProtocolVersion =
+                    (protocolVersion instanceof FiraProtocolVersion)
+                        ? (FiraProtocolVersion) protocolVersion : FiraParams.PROTOCOL_VERSION_1_1;
+            return (T) getFiraSpecificationParamsFromTlvBuffer(tlvs, uwbsFiraProtocolVersion);
         }
         return null;
     }
@@ -172,7 +191,8 @@ public class FiraDecoder extends TlvDecoder {
         return (flags & mask) != 0;
     }
 
-    private FiraSpecificationParams getFiraSpecificationParamsFromTlvBuffer(TlvDecoderBuffer tlvs) {
+    private FiraSpecificationParams getFiraSpecificationParamsFromTlvBuffer(TlvDecoderBuffer tlvs,
+                    ProtocolVersion protocolVersion) {
         FiraSpecificationParams.Builder builder = new FiraSpecificationParams.Builder();
         byte[] versionCheck = tlvs.getByteArray(SUPPORTED_FIRA_PHY_VERSION_RANGE_VER_2_0);
         if (versionCheck.length == 1) {
@@ -254,7 +274,8 @@ public class FiraDecoder extends TlvDecoder {
             byte rangingTimeStructUci = tlvs.getByte(SUPPORTED_RANGING_TIME_STRUCT_VER_1_0);
             EnumSet<RangingTimeStructCapabilitiesFlag> rangingTimeStructFlag =
                     EnumSet.noneOf(RangingTimeStructCapabilitiesFlag.class);
-            if (isBitSet(rangingTimeStructUci, INTERVAL_BASED_SCHEDULING)) {
+            if (protocolVersion.getMajor() <= 2
+                    && isBitSet(rangingTimeStructUci, INTERVAL_BASED_SCHEDULING)) {
                 rangingTimeStructFlag.add(
                         RangingTimeStructCapabilitiesFlag.HAS_INTERVAL_BASED_SCHEDULING_SUPPORT);
             }
@@ -545,9 +566,12 @@ public class FiraDecoder extends TlvDecoder {
             byte rangingTimeStructUci = tlvs.getByte(SUPPORTED_RANGING_TIME_STRUCT_VER_2_0);
             EnumSet<RangingTimeStructCapabilitiesFlag> rangingTimeStructFlag =
                     EnumSet.noneOf(RangingTimeStructCapabilitiesFlag.class);
-            if (isBitSet(rangingTimeStructUci, INTERVAL_BASED_SCHEDULING)) {
-                rangingTimeStructFlag.add(
-                        RangingTimeStructCapabilitiesFlag.HAS_INTERVAL_BASED_SCHEDULING_SUPPORT);
+            // When CR-423 is implemented, do not parse for the "INTERVAL_BASED_SCHEDULING" bit.
+            if (!mUwbInjector.getFeatureFlags().cr423CleanupIntervalScheduling()) {
+                if (isBitSet(rangingTimeStructUci, INTERVAL_BASED_SCHEDULING)) {
+                    rangingTimeStructFlag.add(
+                            RangingTimeStructCapabilitiesFlag.HAS_INTERVAL_BASED_SCHEDULING_SUPPORT);
+                }
             }
             if (isBitSet(rangingTimeStructUci, BLOCK_BASED_SCHEDULING)) {
                 rangingTimeStructFlag.add(
@@ -736,6 +760,24 @@ public class FiraDecoder extends TlvDecoder {
                 builder.setDtTagMaxActiveRr(dtTagMaxActiveRr);
             } catch (IllegalArgumentException e) {
                 Log.w(TAG, "SUPPORTED_DT_TAG_MAX_ACTIVE_RR not found.");
+            }
+
+            try {
+                byte dtTagBlockSkippingUci = tlvs.getByte(SUPPORTED_DT_TAG_BLOCK_SKIPPING_2_0);
+                if (isBitSet(dtTagBlockSkippingUci, DT_TAG_BLOCK_SKIPPING)) {
+                    builder.setDtTagBlockSkippingSupport(true);
+                }
+            } catch (IllegalArgumentException e) {
+                Log.w(TAG, "SUPPORTED_DT_TAG_BLOCK_SKIPPING_2_0 not found.");
+            }
+
+            try {
+                byte psduLengthUci = tlvs.getByte(SUPPORTED_PSDU_LENGTH_2_0);
+                if (isBitSet(psduLengthUci, PSDU_LENGTH_SUPPORT)) {
+                    builder.setPsduLengthSupport(true);
+                }
+            } catch (IllegalArgumentException e) {
+                Log.w(TAG, "SUPPORTED_PSDU_LENGTH_2_0 not found.");
             }
         } else {
             // This FiRa version is not supported yet.

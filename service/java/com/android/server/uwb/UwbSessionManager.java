@@ -1229,6 +1229,10 @@ public class UwbSessionManager implements INativeUwbManager.SessionNotification,
             removeAdvertiserData(uwbSession);
             uwbSession.close();
             removeFromNonPrivilegedUidToFiraSessionTableIfNecessary(uwbSession);
+            if (!uwbSession.isDataDeliveryPermissionCheckNeeded()) {
+                mUwbInjector.finishUwbRangingPermissionForDataDelivery(
+                        uwbSession.getAttributionSource());
+            }
             mSessionTokenMap.remove(uwbSession.getSessionId());
             mSessionTable.remove(uwbSession.getSessionHandle());
             mDbgRecentlyClosedSessions.add(uwbSession);
@@ -1491,7 +1495,8 @@ public class UwbSessionManager implements INativeUwbManager.SessionNotification,
                                                     CccParams.PROTOCOL_NAME,
                                                     new byte[0],
                                                     CccRangingStartedParams.class,
-                                                    uwbSession.getChipId());
+                                                    uwbSession.getChipId(),
+                                                    CccParams.PROTOCOL_VERSION_1_0);
                                     if (statusAndParams.first != UwbUciConstants.STATUS_CODE_OK) {
                                         Log.e(TAG, "Failed to get CCC ranging started params");
                                     }
@@ -1603,7 +1608,8 @@ public class UwbSessionManager implements INativeUwbManager.SessionNotification,
                                 CccParams.PROTOCOL_NAME,
                                 new byte[0],
                                 CccRangingStoppedParams.class,
-                                uwbSession.getChipId());
+                                uwbSession.getChipId(),
+                                CccParams.PROTOCOL_VERSION_1_0);
                 if (statusAndParams.first != UwbUciConstants.STATUS_CODE_OK) {
                     Log.e(TAG, "Failed to get CCC ranging stopped params");
                 }
@@ -1961,7 +1967,7 @@ public class UwbSessionManager implements INativeUwbManager.SessionNotification,
         return true;
     }
 
-    private FiraProtocolVersion getUwbsFiraProtocolVersion(String chipId) {
+    protected FiraProtocolVersion getUwbsFiraProtocolVersion(String chipId) {
         UwbDeviceInfoResponse deviceInfo =
                 mUwbInjector.getUwbServiceCore().getCachedDeviceInfoResponse(chipId);
         if (deviceInfo != null) {
@@ -2042,6 +2048,9 @@ public class UwbSessionManager implements INativeUwbManager.SessionNotification,
         // Store a Map<SequenceNumber, SendDataInfo>, for every Data packet (sent to UWBS). It's
         // used when the corresponding DataTransferStatusNtf is received (from UWBS).
         private final ConcurrentHashMap<Long, SendDataInfo> mSendDataInfoMap;
+
+        // Whether data delivery permission check is needed for the ranging session.
+        private boolean mDataDeliveryPermissionCheckNeeded = true;
 
         @VisibleForTesting
         public List<UwbControlee> mControleeList;
@@ -2588,6 +2597,13 @@ public class UwbSessionManager implements INativeUwbManager.SessionNotification,
             return mReceivedDataInfoMap.keySet();
         }
 
+        public boolean isDataDeliveryPermissionCheckNeeded() {
+            return mDataDeliveryPermissionCheckNeeded;
+        }
+
+        public void setDataDeliveryPermissionCheckNeeded(boolean permissionCheckNeeded) {
+            mDataDeliveryPermissionCheckNeeded = permissionCheckNeeded;
+        }
         public void setMulticastListUpdateStatus(
                 UwbMulticastListUpdateStatus multicastListUpdateStatus) {
             mMulticastListUpdateStatus = multicastListUpdateStatus;

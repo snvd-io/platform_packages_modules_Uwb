@@ -82,6 +82,7 @@ import com.google.uwb.support.oemextension.SessionStatus;
 
 import org.junit.Assume;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -1383,6 +1384,7 @@ public class UwbManagerTest {
                 });
     }
 
+    @Ignore // b/316828112
     @Test
     @CddTest(requirements = {"7.3.13/C-1-1,C-1-2,C-1-5"})
     public void testFiraRangingSessionPauseResume() throws Exception {

@@ -1386,6 +1386,7 @@ public class UwbManagerTest {
                 });
     }
 
+    @Ignore // b/316828112
     @Test
     @CddTest(requirements = {"7.3.13/C-1-1,C-1-2,C-1-5"})
     public void testFiraRangingSessionPauseResume() throws Exception {

@@ -19,8 +19,7 @@ package com.android.server.uwb.profile;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import android.test.suitebuilder.annotation.SmallTest;
-
+import androidx.test.filters.SmallTest;
 import androidx.test.runner.AndroidJUnit4;
 
 import com.google.uwb.support.profile.UuidBundleWrapper;

@@ -21,8 +21,8 @@ import static com.android.server.uwb.params.TlvDecoderBuffer.Tlv;
 import static com.google.common.truth.Truth.assertThat;
 
 import android.platform.test.annotations.Presubmit;
-import android.test.suitebuilder.annotation.SmallTest;
 
+import androidx.test.filters.SmallTest;
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.server.uwb.util.UwbUtil;

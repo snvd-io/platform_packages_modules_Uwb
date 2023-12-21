@@ -25,13 +25,14 @@ import static androidx.core.uwb.backend.impl.internal.Utils.CONFIG_PROVISIONED_U
 import static androidx.core.uwb.backend.impl.internal.Utils.CONFIG_PROVISIONED_UNICAST_DS_TWR_NO_AOA;
 import static androidx.core.uwb.backend.impl.internal.Utils.CONFIG_UNICAST_DS_TWR;
 import static androidx.core.uwb.backend.impl.internal.Utils.CONFIG_UNICAST_DS_TWR_NO_AOA;
-import static androidx.core.uwb.backend.impl.internal.Utils.CONFIG_UNICAST_DS_TWR_NO_RESULT_REPORT_PHASE;
-import static androidx.core.uwb.backend.impl.internal.Utils.CONFIG_UNICAST_DS_TWR_NO_RESULT_REPORT_PHASE_HPRF;
+import static androidx.core.uwb.backend.impl.internal.Utils.CONFIG_PROVISIONED_UNICAST_DS_TWR_NO_RESULT_REPORT_PHASE;
+import static androidx.core.uwb.backend.impl.internal.Utils.CONFIG_PROVISIONED_UNICAST_DS_TWR_NO_RESULT_REPORT_PHASE_HPRF;
 import static androidx.core.uwb.backend.impl.internal.Utils.STATIC_STS_SESSION_KEY_INFO_SIZE;
 import static androidx.core.uwb.backend.impl.internal.Utils.VENDOR_ID_SIZE;
 import static androidx.core.uwb.backend.impl.internal.Utils.getRangingTimingParams;
 
 import static com.google.uwb.support.fira.FiraParams.AOA_RESULT_REQUEST_MODE_NO_AOA_REPORT;
+import static com.google.uwb.support.fira.FiraParams.FILTER_TYPE_NONE;
 import static com.google.uwb.support.fira.FiraParams.HOPPING_MODE_FIRA_HOPPING_ENABLE;
 import static com.google.uwb.support.fira.FiraParams.MAC_ADDRESS_MODE_2_BYTES;
 import static com.google.uwb.support.fira.FiraParams.MULTI_NODE_MODE_ONE_TO_MANY;
@@ -398,12 +399,12 @@ public final class ConfigurationManager {
 
         // ID_1002 properties.
         sConfigs.put(
-                CONFIG_UNICAST_DS_TWR_NO_RESULT_REPORT_PHASE,
+                CONFIG_PROVISIONED_UNICAST_DS_TWR_NO_RESULT_REPORT_PHASE,
                 new UwbConfiguration() {
 
                     @Override
                     public int getConfigId() {
-                        return CONFIG_UNICAST_DS_TWR_NO_RESULT_REPORT_PHASE;
+                        return CONFIG_PROVISIONED_UNICAST_DS_TWR_NO_RESULT_REPORT_PHASE;
                     }
 
                     @Override
@@ -413,7 +414,7 @@ public final class ConfigurationManager {
 
                     @Override
                     public int getStsConfig() {
-                        return FiraParams.STS_CONFIG_STATIC;
+                        return STS_CONFIG_PROVISIONED;
                     }
 
                     @Override
@@ -434,12 +435,12 @@ public final class ConfigurationManager {
 
         // ID_1003 properties.
         sConfigs.put(
-                CONFIG_UNICAST_DS_TWR_NO_RESULT_REPORT_PHASE_HPRF,
+                CONFIG_PROVISIONED_UNICAST_DS_TWR_NO_RESULT_REPORT_PHASE_HPRF,
                 new UwbConfiguration() {
 
                     @Override
                     public int getConfigId() {
-                        return CONFIG_UNICAST_DS_TWR_NO_RESULT_REPORT_PHASE_HPRF;
+                        return CONFIG_PROVISIONED_UNICAST_DS_TWR_NO_RESULT_REPORT_PHASE_HPRF;
                     }
 
                     @Override
@@ -449,7 +450,7 @@ public final class ConfigurationManager {
 
                     @Override
                     public int getStsConfig() {
-                        return FiraParams.STS_CONFIG_STATIC;
+                        return STS_CONFIG_PROVISIONED;
                     }
 
                     @Override
@@ -582,14 +583,16 @@ public final class ConfigurationManager {
             builder.setRframeConfig(RFRAME_CONFIG_SP1);
         }
 
-        if (configuration.getConfigId() == CONFIG_UNICAST_DS_TWR_NO_RESULT_REPORT_PHASE_HPRF) {
+        if (configuration.getConfigId()
+                == CONFIG_PROVISIONED_UNICAST_DS_TWR_NO_RESULT_REPORT_PHASE_HPRF) {
             builder.setPrfMode(PRF_MODE_HPRF);
         }
 
-        if (configuration.getConfigId() == CONFIG_UNICAST_DS_TWR_NO_RESULT_REPORT_PHASE
+        if (configuration.getConfigId() == CONFIG_PROVISIONED_UNICAST_DS_TWR_NO_RESULT_REPORT_PHASE
                 || configuration.getConfigId()
-                    == CONFIG_UNICAST_DS_TWR_NO_RESULT_REPORT_PHASE_HPRF) {
+                    == CONFIG_PROVISIONED_UNICAST_DS_TWR_NO_RESULT_REPORT_PHASE_HPRF) {
             builder.setHasRangingResultReportMessage(false);
+            builder.setFilterType(FILTER_TYPE_NONE);
         }
 
         return builder.build();

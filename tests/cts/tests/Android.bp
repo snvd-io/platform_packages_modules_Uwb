@@ -26,6 +26,7 @@ android_test {
         "cts",
         "general-tests",
         "mts-uwb",
+        "mcts-uwb",
     ],
     libs: ["android.test.runner"],
     static_libs: [

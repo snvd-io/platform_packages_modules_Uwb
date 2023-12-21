@@ -46,8 +46,8 @@ public final class Utils {
         CONFIG_PROVISIONED_INDIVIDUAL_MULTICAST_DS_TWR,
         CONFIG_MULTICAST_DS_TWR_NO_AOA,
         CONFIG_DL_TDOA_DT_TAG,
-        CONFIG_UNICAST_DS_TWR_NO_RESULT_REPORT_PHASE,
-        CONFIG_UNICAST_DS_TWR_NO_RESULT_REPORT_PHASE_HPRF,
+        CONFIG_PROVISIONED_UNICAST_DS_TWR_NO_RESULT_REPORT_PHASE,
+        CONFIG_PROVISIONED_UNICAST_DS_TWR_NO_RESULT_REPORT_PHASE_HPRF
     })
     public @interface UwbConfigId {}
 
@@ -83,13 +83,13 @@ public final class Utils {
     public static final int CONFIG_DL_TDOA_DT_TAG = 1001;
 
     /**
-     * Same as {@code CONFIG_ID_1}, except result report phase is disabled, fast ranging interval 96
-     * ms, @Hide
+     * Same as {@code CONFIG_ID_4}, except result report phase is disabled, fast ranging interval 96
+     * ms, filtering disabled, @Hide
      */
-    public static final int CONFIG_UNICAST_DS_TWR_NO_RESULT_REPORT_PHASE = 1002;
+    public static final int CONFIG_PROVISIONED_UNICAST_DS_TWR_NO_RESULT_REPORT_PHASE = 1002;
 
     /** Same as {@code CONFIG_ID_1002}, except PRF mode is HPRF, @Hide */
-    public static final int CONFIG_UNICAST_DS_TWR_NO_RESULT_REPORT_PHASE_HPRF = 1003;
+    public static final int CONFIG_PROVISIONED_UNICAST_DS_TWR_NO_RESULT_REPORT_PHASE_HPRF = 1003;
 
     @IntDef({
         INFREQUENT,
@@ -339,7 +339,7 @@ public final class Utils {
                         /* hoppingEnabled= */ true));
 
         setRangingTimingParams(
-                CONFIG_UNICAST_DS_TWR_NO_RESULT_REPORT_PHASE,
+                CONFIG_PROVISIONED_UNICAST_DS_TWR_NO_RESULT_REPORT_PHASE,
                 new RangingTimingParams(
                         /* rangingIntervalNormal= */ 240,
                         /* rangingIntervalFast= */ 96,
@@ -350,7 +350,7 @@ public final class Utils {
                         /* hoppingEnabled= */ true));
 
         setRangingTimingParams(
-                CONFIG_UNICAST_DS_TWR_NO_RESULT_REPORT_PHASE_HPRF,
+                CONFIG_PROVISIONED_UNICAST_DS_TWR_NO_RESULT_REPORT_PHASE_HPRF,
                 new RangingTimingParams(
                         /* rangingIntervalNormal= */ 240,
                         /* rangingIntervalFast= */ 96,

@@ -27,7 +27,7 @@ import static androidx.core.uwb.backend.impl.internal.Utils.CONFIG_PROVISIONED_I
 import static androidx.core.uwb.backend.impl.internal.Utils.CONFIG_PROVISIONED_MULTICAST_DS_TWR;
 import static androidx.core.uwb.backend.impl.internal.Utils.CONFIG_PROVISIONED_UNICAST_DS_TWR;
 import static androidx.core.uwb.backend.impl.internal.Utils.CONFIG_PROVISIONED_UNICAST_DS_TWR_NO_AOA;
-import static androidx.core.uwb.backend.impl.internal.Utils.CONFIG_UNICAST_DS_TWR_NO_RESULT_REPORT_PHASE_HPRF;
+import static androidx.core.uwb.backend.impl.internal.Utils.CONFIG_PROVISIONED_UNICAST_DS_TWR_NO_RESULT_REPORT_PHASE_HPRF;
 import static androidx.core.uwb.backend.impl.internal.Utils.RANGE_DATA_NTF_ENABLE;
 import static androidx.core.uwb.backend.impl.internal.UwbAvailabilityCallback.REASON_UNKNOWN;
 
@@ -233,7 +233,7 @@ public class UwbServiceImpl {
         EnumSet<FiraParams.PrfCapabilityFlag> prfModeCapabilityFlags =
                 specificationParams.getPrfCapabilities();
         if (prfModeCapabilityFlags.contains(FiraParams.PrfCapabilityFlag.HAS_HPRF_SUPPORT)) {
-            supportedConfigIds.add(CONFIG_UNICAST_DS_TWR_NO_RESULT_REPORT_PHASE_HPRF);
+            supportedConfigIds.add(CONFIG_PROVISIONED_UNICAST_DS_TWR_NO_RESULT_REPORT_PHASE_HPRF);
         }
         int minSlotDurationUs = specificationParams.getMinSlotDurationUs();
         List<Integer> supportedSlotDurations = new ArrayList<>(Utils.DURATION_2_MS);

@@ -41,8 +41,8 @@ import static com.google.uwb.support.fira.FiraParams.STS_CONFIG_DYNAMIC_FOR_CONT
 import static com.google.uwb.support.fira.FiraParams.TIME_SCHEDULED_RANGING;
 
 import android.platform.test.annotations.Presubmit;
-import android.test.suitebuilder.annotation.SmallTest;
 
+import androidx.test.filters.SmallTest;
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.server.uwb.config.CapabilityParam;

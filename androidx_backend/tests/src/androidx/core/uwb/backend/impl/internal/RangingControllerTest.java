@@ -38,10 +38,10 @@ import static org.mockito.Mockito.verify;
 import android.os.CancellationSignal;
 import android.os.PersistableBundle;
 import android.platform.test.annotations.Presubmit;
-import android.test.suitebuilder.annotation.SmallTest;
 import android.uwb.RangingSession;
 import android.uwb.UwbManager;
 
+import androidx.test.filters.SmallTest;
 import androidx.test.runner.AndroidJUnit4;
 
 import com.google.uwb.support.fira.FiraOpenSessionParams;

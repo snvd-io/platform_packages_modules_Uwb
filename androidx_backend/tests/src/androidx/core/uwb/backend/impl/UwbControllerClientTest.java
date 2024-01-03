@@ -26,7 +26,6 @@ import static org.mockito.Mockito.when;
 
 import android.os.RemoteException;
 import android.platform.test.annotations.Presubmit;
-import android.test.suitebuilder.annotation.SmallTest;
 
 import androidx.core.uwb.backend.IRangingSessionCallback;
 import androidx.core.uwb.backend.RangingControleeParameters;
@@ -37,6 +36,7 @@ import androidx.core.uwb.backend.impl.internal.RangingController;
 import androidx.core.uwb.backend.impl.internal.RangingSessionCallback;
 import androidx.core.uwb.backend.impl.internal.UwbComplexChannel;
 import androidx.core.uwb.backend.impl.internal.UwbServiceImpl;
+import androidx.test.filters.SmallTest;
 import androidx.test.runner.AndroidJUnit4;
 
 import org.junit.Before;

@@ -40,6 +40,7 @@ import static com.android.server.uwb.config.CapabilityParam.CCC_SUPPORTED_PULSE_
 import static com.android.server.uwb.config.CapabilityParam.CCC_SUPPORTED_RAN_MULTIPLIER;
 import static com.android.server.uwb.config.CapabilityParam.CCC_SUPPORTED_SYNC_CODES;
 import static com.android.server.uwb.config.CapabilityParam.CCC_SUPPORTED_UWB_CONFIGS;
+import static com.android.server.uwb.config.CapabilityParam.CCC_SUPPORTED_UWBS_MAX_PPM;
 import static com.android.server.uwb.config.CapabilityParam.CCC_SUPPORTED_VERSIONS;
 
 import static com.google.uwb.support.ccc.CccParams.CHAPS_PER_SLOT_12;
@@ -235,6 +236,16 @@ public class CccDecoder extends TlvDecoder {
         } catch (IllegalArgumentException e) {
             Log.w(TAG, "SUPPORTED_MIN_UWB_INITIATION_TIME_MS not found");
         }
+
+        // Attempt to parse the UWBS_MAX_PPM as a short, since the CCC spec R3 defines the
+        // field Device_max_PPM field (in the TimeSync message) as a 2-octet field.
+        try {
+            short uwbsMaxPPM = tlvs.getShort(CCC_SUPPORTED_UWBS_MAX_PPM);
+            builder.setUwbsMaxPPM(uwbsMaxPPM);
+        } catch (IllegalArgumentException e) {
+            Log.w(TAG, "CCC_SUPPORTED_UWBS_MAX_PPM not found");
+        }
+
         return builder.build();
     }
 

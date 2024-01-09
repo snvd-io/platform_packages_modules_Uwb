@@ -115,6 +115,8 @@ public class CapabilityParam {
             UwbVendorCapabilityTlvTypes.CCC_SUPPORTED_MIN_UWB_INITIATION_TIME_MS;
     public static final int CCC_PRIORITIZED_CHANNEL_LIST =
             UwbVendorCapabilityTlvTypes.CCC_PRIORITIZED_CHANNEL_LIST;
+    public static final int CCC_SUPPORTED_UWBS_MAX_PPM =
+            UwbVendorCapabilityTlvTypes.CCC_SUPPORTED_UWBS_MAX_PPM;
 
     public static final int RESPONDER = 0x01;
     public static final int INITIATOR = 0x02;

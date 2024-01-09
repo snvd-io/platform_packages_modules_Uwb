@@ -33,7 +33,6 @@ rust_ffi_shared {
     rustlibs: [
         "libuci_hal_android",
         "libuwb_core",
-        "libuwb_aconfig_flags_rust"
     ],
 }
 

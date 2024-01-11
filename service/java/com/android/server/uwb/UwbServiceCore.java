@@ -320,11 +320,11 @@ public class UwbServiceCore implements INativeUwbManager.DeviceNotification,
         return mHandler;
     }
 
-    public boolean isOemExtensionCbRegistered() {
+    public synchronized boolean isOemExtensionCbRegistered() {
         return mOemExtensionCallback != null;
     }
 
-    public IUwbOemExtensionCallback getOemExtensionCallback() {
+    public synchronized IUwbOemExtensionCallback getOemExtensionCallback() {
         return mOemExtensionCallback;
     }
 
@@ -416,14 +416,15 @@ public class UwbServiceCore implements INativeUwbManager.DeviceNotification,
     }
 
     void oemExtensionDeviceStatusUpdate(int deviceState, String chipId) {
-        if (mOemExtensionCallback != null) {
+        IUwbOemExtensionCallback oemExtensionCallback = getOemExtensionCallback();
+        if (oemExtensionCallback != null) {
             PersistableBundle deviceStateBundle = new DeviceStatus.Builder()
                     .setDeviceState(deviceState)
                     .setChipId(chipId)
                     .build()
                     .toBundle();
             try {
-                mOemExtensionCallback.onDeviceStatusNotificationReceived(deviceStateBundle);
+                oemExtensionCallback.onDeviceStatusNotificationReceived(deviceStateBundle);
             } catch (RemoteException e) {
                 Log.e(TAG, "Failed to send status notification to oem", e);
             }
@@ -541,7 +542,7 @@ public class UwbServiceCore implements INativeUwbManager.DeviceNotification,
         mCallBack = null;
     }
 
-    public void registerOemExtensionCallback(IUwbOemExtensionCallback callback) {
+    public synchronized void registerOemExtensionCallback(IUwbOemExtensionCallback callback) {
         if (isOemExtensionCbRegistered()) {
             Log.w(TAG, "Oem extension callback being re-registered");
         }
@@ -549,7 +550,7 @@ public class UwbServiceCore implements INativeUwbManager.DeviceNotification,
         mOemExtensionCallback = callback;
     }
 
-    public void unregisterOemExtensionCallback(IUwbOemExtensionCallback callback) {
+    public synchronized void unregisterOemExtensionCallback(IUwbOemExtensionCallback callback) {
         Log.e(TAG, "Unregister Oem Extension callback");
         mOemExtensionCallback = null;
     }

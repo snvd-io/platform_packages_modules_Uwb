@@ -25,18 +25,18 @@ java_defaults {
         "androidx.annotation_annotation",
     ],
     static_libs: [
-        "guava"
+        "guava",
     ],
     apex_available: [
         "com.android.uwb",
         "com.android.tethering",
         "//apex_available:platform",
     ],
-    visibility : [
+    visibility: [
         "//external/sl4a/Common",
         "//packages/modules/Uwb:__subpackages__",
         "//packages/modules/Connectivity/remoteauth:__subpackages__",
-    ]
+    ],
 }
 
 java_library {
@@ -67,6 +67,9 @@ java_library {
     static_libs: [
         "com.uwb.support.base",
     ],
+    lint: {
+        baseline_filename: "lint-baseline.xml",
+    },
 }
 
 java_library {
@@ -112,6 +115,9 @@ java_library {
     static_libs: [
         "com.uwb.support.base",
     ],
+    lint: {
+        baseline_filename: "lint-baseline2.xml",
+    },
 }
 
 java_library {

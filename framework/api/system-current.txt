@@ -111,6 +111,7 @@ package android.uwb {
     method @RequiresPermission(android.Manifest.permission.UWB_PRIVILEGED) public void removeControlee(@NonNull android.os.PersistableBundle);
     method @RequiresPermission(android.Manifest.permission.UWB_PRIVILEGED) public void resume(@NonNull android.os.PersistableBundle);
     method @RequiresPermission(android.Manifest.permission.UWB_PRIVILEGED) public void sendData(@NonNull android.uwb.UwbAddress, @NonNull android.os.PersistableBundle, @NonNull byte[]);
+    method @FlaggedApi("com.android.uwb.flags.hybrid_session_support") @RequiresPermission(android.Manifest.permission.UWB_PRIVILEGED) public int setHybridSessionConfiguration(@NonNull android.os.PersistableBundle);
     method @RequiresPermission(android.Manifest.permission.UWB_PRIVILEGED) public void start(@NonNull android.os.PersistableBundle);
     method @RequiresPermission(android.Manifest.permission.UWB_PRIVILEGED) public void stop();
     method @RequiresPermission(android.Manifest.permission.UWB_PRIVILEGED) public void updatePose(@NonNull android.os.PersistableBundle);
@@ -214,6 +215,7 @@ package android.uwb {
     method @NonNull @RequiresPermission(allOf={android.Manifest.permission.UWB_PRIVILEGED, android.Manifest.permission.UWB_RANGING}) public android.os.CancellationSignal openRangingSession(@NonNull android.os.PersistableBundle, @NonNull java.util.concurrent.Executor, @NonNull android.uwb.RangingSession.Callback);
     method @NonNull @RequiresPermission(allOf={android.Manifest.permission.UWB_PRIVILEGED, android.Manifest.permission.UWB_RANGING}) public android.os.CancellationSignal openRangingSession(@NonNull android.os.PersistableBundle, @NonNull java.util.concurrent.Executor, @NonNull android.uwb.RangingSession.Callback, @NonNull String);
     method public void provisionProfileAdfByScript(@NonNull android.os.PersistableBundle, @NonNull java.util.concurrent.Executor, @NonNull android.uwb.UwbManager.AdfProvisionStateCallback);
+    method @FlaggedApi("com.android.uwb.flags.query_timestamp_micros") @NonNull @RequiresPermission(android.Manifest.permission.UWB_PRIVILEGED) public long queryUwbsTimestampMicros();
     method @RequiresPermission(android.Manifest.permission.UWB_PRIVILEGED) public void registerAdapterStateCallback(@NonNull java.util.concurrent.Executor, @NonNull android.uwb.UwbManager.AdapterStateCallback);
     method @RequiresPermission(android.Manifest.permission.UWB_PRIVILEGED) public void registerUwbOemExtensionCallback(@NonNull java.util.concurrent.Executor, @NonNull android.uwb.UwbManager.UwbOemExtensionCallback);
     method @RequiresPermission(android.Manifest.permission.UWB_PRIVILEGED) public void registerUwbVendorUciCallback(@NonNull java.util.concurrent.Executor, @NonNull android.uwb.UwbManager.UwbVendorUciCallback);

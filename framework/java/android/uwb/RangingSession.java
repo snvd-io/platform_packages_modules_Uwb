@@ -807,10 +807,7 @@ public final class RangingSession implements AutoCloseable {
     }
 
     /**
-     * @hide
      * Sets the Hybrid UWB Session Configuration
-     * <p>
-     * Requires the {@link android.Manifest.permission#UWB_PRIVILEGED} permission
      *
      * @param params protocol specific parameters to initiate the hybrid session
      * @return HUS configuration status code
@@ -829,6 +826,7 @@ public final class RangingSession implements AutoCloseable {
      * @throws RemoteException if a remote error occurred
      */
     @RequiresPermission(Manifest.permission.UWB_PRIVILEGED)
+    @FlaggedApi("com.android.uwb.flags.hybrid_session_support")
     public int setHybridSessionConfiguration(@NonNull PersistableBundle params) {
         if (!isOpen()) {
             throw new IllegalStateException("Ranging session is not open");

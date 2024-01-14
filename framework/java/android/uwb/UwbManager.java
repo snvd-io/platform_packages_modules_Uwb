@@ -20,6 +20,7 @@ import static com.android.internal.util.Preconditions.checkNotNull;
 
 import android.Manifest.permission;
 import android.annotation.CallbackExecutor;
+import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
 import android.annotation.IntRange;
 import android.annotation.NonNull;
@@ -545,13 +546,13 @@ public final class UwbManager {
     }
 
     /**
-     * @hide
      * Get uwbs timestamp in micros.
      *
      * @return uwb device timestamp in micros.
      */
     @NonNull
     @RequiresPermission(permission.UWB_PRIVILEGED)
+    @FlaggedApi("com.android.uwb.flags.query_timestamp_micros")
     public long queryUwbsTimestampMicros() {
         try {
             return mUwbAdapter.queryUwbsTimestampMicros();

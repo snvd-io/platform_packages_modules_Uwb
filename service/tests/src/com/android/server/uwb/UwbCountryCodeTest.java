@@ -55,6 +55,7 @@ import android.util.Pair;
 import androidx.test.filters.SmallTest;
 
 import com.android.server.uwb.jni.NativeUwbManager;
+import com.android.uwb.flags.FeatureFlags;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -73,6 +74,7 @@ import java.util.List;
 public class UwbCountryCodeTest {
     private static final String TEST_COUNTRY_CODE = "US";
     private static final String TEST_COUNTRY_CODE_OTHER = "JP";
+    private static final String ISO_COUNTRY_CODE = "UK";
     private static final int TEST_SUBSCRIPTION_ID = 0;
     private static final int TEST_SLOT_IDX = 0;
     private static final int TEST_SUBSCRIPTION_ID_OTHER = 1;
@@ -90,6 +92,8 @@ public class UwbCountryCodeTest {
     @Mock Location mLocation;
     @Mock UwbCountryCode.CountryCodeChangedListener mListener;
     @Mock DeviceConfigFacade mDeviceConfigFacade;
+    @Mock FeatureFlags mFeatureFlags;
+
     private TestLooper mTestLooper;
     private UwbCountryCode mUwbCountryCode;
 
@@ -109,6 +113,12 @@ public class UwbCountryCodeTest {
     public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
         mTestLooper = new TestLooper();
+
+        // Setup the unit tests to have default behavior of using the getNetworkCountryIso(). This
+        // should not have any effect as below the TelephonyManager is setup to return some active
+        // subscription(s) (which should also be the typical behavior when phone has a SIM).
+        when(mUwbInjector.getFeatureFlags()).thenReturn(mFeatureFlags);
+        when(mFeatureFlags.useNetworkCountryIso()).thenReturn(true);
 
         when(mContext.createContext(any())).thenReturn(mContext);
         when(mContext.getSystemService(TelephonyManager.class))
@@ -160,6 +170,82 @@ public class UwbCountryCodeTest {
         verify(mNativeUwbManager).setCountryCode(
                 TEST_COUNTRY_CODE.getBytes(StandardCharsets.UTF_8));
         verify(mListener).onCountryCodeChanged(STATUS_CODE_OK, TEST_COUNTRY_CODE);
+    }
+
+    // Test that a country code is configured, when the list of active subscriptions is empty,
+    // the flag to use the NetworkCountryIso() is enabled, and it returns a valid country code.
+    @Test
+    public void testInitializeCountryCodeFromTelephonyWhenSubscriptionListEmptyAndFlagEnabled() {
+        when(mSubscriptionManager.getActiveSubscriptionInfoList()).thenReturn(List.of());
+        when(mTelephonyManager.getNetworkCountryIso()).thenReturn(ISO_COUNTRY_CODE);
+
+        mUwbCountryCode.initialize();
+
+        verify(mTelephonyManager).getNetworkCountryIso();
+        verify(mTelephonyManager, never()).getNetworkCountryIso(anyInt());
+        verify(mNativeUwbManager).setCountryCode(
+                ISO_COUNTRY_CODE.getBytes(StandardCharsets.UTF_8));
+        verify(mListener).onCountryCodeChanged(STATUS_CODE_OK, ISO_COUNTRY_CODE);
+    }
+
+    // Test that a country code is configured, when the list of active subscriptions is null,
+    // the flag to use the NetworkCountryIso() is enabled, and it returns a valid country code.
+    @Test
+    public void testInitializeCountryCodeFromTelephonyWhenSubscriptionListNullAndFlagEnabled() {
+        when(mSubscriptionManager.getActiveSubscriptionInfoList()).thenReturn(null);
+        when(mTelephonyManager.getNetworkCountryIso()).thenReturn(ISO_COUNTRY_CODE);
+
+        mUwbCountryCode.initialize();
+
+        verify(mTelephonyManager).getNetworkCountryIso();
+        verify(mTelephonyManager, never()).getNetworkCountryIso(anyInt());
+        verify(mNativeUwbManager).setCountryCode(
+                ISO_COUNTRY_CODE.getBytes(StandardCharsets.UTF_8));
+        verify(mListener).onCountryCodeChanged(STATUS_CODE_OK, ISO_COUNTRY_CODE);
+    }
+
+    // Test that a country code is not configured, when the list of active subscriptions is empty,
+    // the flag to use the NetworkCountryIso() is enabled, and it returns an empty country code.
+    @Test
+    public void testInitializeCountryCodeFromTelephonyWhenSubscriptionListAndNetworkCountryEmpty() {
+        when(mSubscriptionManager.getActiveSubscriptionInfoList()).thenReturn(List.of());
+        when(mTelephonyManager.getNetworkCountryIso()).thenReturn("");
+
+        mUwbCountryCode.initialize();
+
+        verify(mTelephonyManager).getNetworkCountryIso();
+        verify(mTelephonyManager, never()).getNetworkCountryIso(anyInt());
+        verifyNoMoreInteractions(mNativeUwbManager, mListener);
+    }
+
+    // Test that a country code is not configured, when the list of active subscription is empty,
+    // the flag to use the NetworkCountryIso() is disabled.
+    @Test
+    public void testInitializeCountryCodeFromTelephonyWhenSubscriptionListEmptyAndFlagDisabled() {
+        when(mSubscriptionManager.getActiveSubscriptionInfoList()).thenReturn(List.of());
+        when(mTelephonyManager.getNetworkCountryIso()).thenReturn(ISO_COUNTRY_CODE);
+        when(mFeatureFlags.useNetworkCountryIso()).thenReturn(false);
+
+        mUwbCountryCode.initialize();
+
+        verify(mTelephonyManager, never()).getNetworkCountryIso();
+        verify(mTelephonyManager, never()).getNetworkCountryIso(anyInt());
+        verifyNoMoreInteractions(mNativeUwbManager, mListener);
+    }
+
+    // Test that a country code is not configured, when the list of active subscriptions is null,
+    // the flag to use the NetworkCountryIso() is disabled.
+    @Test
+    public void testInitializeCountryCodeFromTelephonyWhenSubscriptionListNullAndFlagDisabled() {
+        when(mSubscriptionManager.getActiveSubscriptionInfoList()).thenReturn(null);
+        when(mTelephonyManager.getNetworkCountryIso()).thenReturn(ISO_COUNTRY_CODE);
+        when(mFeatureFlags.useNetworkCountryIso()).thenReturn(false);
+
+        mUwbCountryCode.initialize();
+
+        verify(mTelephonyManager, never()).getNetworkCountryIso();
+        verify(mTelephonyManager, never()).getNetworkCountryIso(anyInt());
+        verifyNoMoreInteractions(mNativeUwbManager, mListener);
     }
 
     @Test

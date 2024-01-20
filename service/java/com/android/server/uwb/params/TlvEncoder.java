@@ -18,6 +18,7 @@ package com.android.server.uwb.params;
 
 import com.android.server.uwb.UwbInjector;
 
+import com.google.uwb.support.aliro.AliroParams;
 import com.google.uwb.support.base.Params;
 import com.google.uwb.support.base.ProtocolVersion;
 import com.google.uwb.support.ccc.CccParams;
@@ -34,6 +35,9 @@ public abstract class TlvEncoder {
         }
         if (protocolName.equals(CccParams.PROTOCOL_NAME)) {
             return new CccEncoder(uwbInjector);
+        }
+        if (protocolName.equals(AliroParams.PROTOCOL_NAME)) {
+            return new AliroEncoder(uwbInjector);
         }
         if (protocolName.equals(RadarParams.PROTOCOL_NAME)) {
             return new RadarEncoder();

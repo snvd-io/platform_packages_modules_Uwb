@@ -25,18 +25,18 @@ java_defaults {
         "androidx.annotation_annotation",
     ],
     static_libs: [
-        "guava"
+        "guava",
     ],
     apex_available: [
         "com.android.uwb",
         "com.android.tethering",
         "//apex_available:platform",
     ],
-    visibility : [
+    visibility: [
         "//external/sl4a/Common",
         "//packages/modules/Uwb:__subpackages__",
         "//packages/modules/Connectivity/remoteauth:__subpackages__",
-    ]
+    ],
 }
 
 java_library {
@@ -44,6 +44,17 @@ java_library {
     defaults: ["support-lib-uwb-common-defaults"],
     srcs: [
         "src/com/google/uwb/support/base/**/*.java",
+    ],
+}
+
+java_library {
+    name: "com.uwb.support.aliro",
+    defaults: ["support-lib-uwb-common-defaults"],
+    srcs: [
+        "src/com/google/uwb/support/aliro/**/*.java",
+    ],
+    static_libs: [
+        "com.uwb.support.base",
     ],
 }
 
@@ -76,6 +87,7 @@ java_library {
         "src/com/google/uwb/support/generic/**/*.java",
     ],
     static_libs: [
+        "com.uwb.support.aliro",
         "com.uwb.support.base",
         "com.uwb.support.ccc",
         "com.uwb.support.fira",

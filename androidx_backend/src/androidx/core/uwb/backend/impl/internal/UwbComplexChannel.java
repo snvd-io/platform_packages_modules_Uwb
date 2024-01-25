@@ -17,6 +17,7 @@
 package androidx.core.uwb.backend.impl.internal;
 
 import static androidx.core.uwb.backend.impl.internal.Utils.SUPPORTED_BPRF_PREAMBLE_INDEX;
+import static androidx.core.uwb.backend.impl.internal.Utils.SUPPORTED_HPRF_PREAMBLE_INDEX;
 import static androidx.core.uwb.backend.impl.internal.Utils.SUPPORTED_CHANNELS;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -38,7 +39,9 @@ public class UwbComplexChannel {
             @FiraParams.UwbPreambleCodeIndex int preambleIndex) {
         checkArgument(SUPPORTED_CHANNELS.contains(channel), "Invalid channel number.");
         checkArgument(
-                SUPPORTED_BPRF_PREAMBLE_INDEX.contains(preambleIndex), "Invalid preamble index.");
+                SUPPORTED_BPRF_PREAMBLE_INDEX.contains(preambleIndex)
+                    || SUPPORTED_HPRF_PREAMBLE_INDEX.contains(preambleIndex),
+                "Invalid preamble index.");
         mChannel = channel;
         mPreambleIndex = preambleIndex;
     }
@@ -54,14 +57,28 @@ public class UwbComplexChannel {
     }
 
     /**
-     * Pack channel/Preamble Index to a 5-bit integer.
+     * Pack channel/Preamble Index to a 8-bit integer.
      *
-     * @return packed 5-bit integer. [2:4] is the channel index [0:1] is the index of the preamble
-     *     index
+     * @return packed 5-bit integer. [4:6] is the channel index [1:3] is the index of the preamble
+     *     index, [0] indicates BPRF (0) or HPRF (1).
      */
     public int encode() {
-        return (Arrays.binarySearch(Ints.toArray(SUPPORTED_CHANNELS), mChannel << 2)
-                | Arrays.binarySearch(Ints.toArray(SUPPORTED_BPRF_PREAMBLE_INDEX), mPreambleIndex));
+        int indexOfPreambleInArray = 0;
+        int encodedPrfType = 0;
+        if (mPreambleIndex <= 12) {
+            // BPRF.
+            indexOfPreambleInArray =
+                Arrays.binarySearch(Ints.toArray(SUPPORTED_BPRF_PREAMBLE_INDEX), mPreambleIndex);
+        } else {
+            // HPRF.
+            indexOfPreambleInArray =
+                Arrays.binarySearch(Ints.toArray(SUPPORTED_HPRF_PREAMBLE_INDEX), mPreambleIndex);
+            encodedPrfType = 1;
+        }
+
+        return (Arrays.binarySearch(Ints.toArray(SUPPORTED_CHANNELS), mChannel << 4)
+            | indexOfPreambleInArray << 1
+            | encodedPrfType);
     }
 
     @Override

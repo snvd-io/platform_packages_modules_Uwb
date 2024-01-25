@@ -369,10 +369,14 @@ public final class Utils {
             ImmutableList.of(5, 6, 8, 9, 10, 12, 13, 14);
 
     // Preamble index used by BPRF (base pulse repetition frequency) mode. BPRF supports bitrate up
-    // to 6Mb/s, which is good enough for ranging purpose. Eventually, HPRF (high pulse repetition
-    // frequency) support will be added.
+    // to 6Mb/s, which is good enough for ranging purpose.
     public static final ImmutableList<Integer> SUPPORTED_BPRF_PREAMBLE_INDEX =
             ImmutableList.of(9, 10, 11, 12);
+
+    // Preamble index used by HPRF (high pulse repetition frequency) mode. HPRF supports bitrate up
+    // to 31.2 Mbps.
+    public static final ImmutableList<Integer> SUPPORTED_HPRF_PREAMBLE_INDEX =
+            ImmutableList.of(25, 26, 27, 28, 19, 30, 31, 32);
 
     /** Converts millisecond to RSTU. */
     public static int convertMsToRstu(int value) {

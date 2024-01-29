@@ -48,6 +48,17 @@ java_library {
 }
 
 java_library {
+    name: "com.uwb.support.aliro",
+    defaults: ["support-lib-uwb-common-defaults"],
+    srcs: [
+        "src/com/google/uwb/support/aliro/**/*.java",
+    ],
+    static_libs: [
+        "com.uwb.support.base",
+    ],
+}
+
+java_library {
     name: "com.uwb.support.ccc",
     defaults: ["support-lib-uwb-common-defaults"],
     srcs: [
@@ -79,6 +90,7 @@ java_library {
         "src/com/google/uwb/support/generic/**/*.java",
     ],
     static_libs: [
+        "com.uwb.support.aliro",
         "com.uwb.support.base",
         "com.uwb.support.ccc",
         "com.uwb.support.fira",

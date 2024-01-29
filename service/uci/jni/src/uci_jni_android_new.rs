@@ -76,7 +76,7 @@ pub extern "system" fn Java_com_android_server_uwb_jni_NativeUwbManager_nativeIn
     logger::init(
         logger::Config::default()
             .with_tag_on_device("uwb")
-            .with_min_level(log::Level::Trace)
+            .with_max_level(log::LevelFilter::Trace)
             .with_filter("trace,jni=info"),
     );
     debug!("{}: enter", function_name!());

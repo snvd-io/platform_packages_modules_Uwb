@@ -21,6 +21,7 @@ import static android.hardware.uwb.fira_android.UwbVendorStatusCodes.STATUS_REGU
 
 import android.hardware.uwb.fira_android.UwbVendorReasonCodes;
 
+import com.google.uwb.support.aliro.AliroParams;
 import com.google.uwb.support.ccc.CccParams;
 import com.google.uwb.support.fira.FiraParams;
 
@@ -41,6 +42,7 @@ public class UwbUciConstants {
     public static final byte SESSION_TYPE_RANGING = FiraParams.SESSION_TYPE_RANGING;
     public static final byte SESSION_TYPE_DATA_TRANSFER =
             FiraParams.SESSION_TYPE_RANGING_AND_IN_BAND_DATA;
+    public static final byte SESSION_TYPE_ALIRO = (byte) AliroParams.SESSION_TYPE_ALIRO;
     public static final byte SESSION_TYPE_CCC = (byte) CccParams.SESSION_TYPE_CCC;
     public static final byte SESSION_TYPE_DEVICE_TEST_MODE =
             (byte) FiraParams.SESSION_TYPE_DEVICE_TEST_MODE;

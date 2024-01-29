@@ -19,6 +19,7 @@ package com.android.server.uwb;
 import static android.app.ActivityManager.RunningAppProcessInfo.IMPORTANCE_BACKGROUND;
 import static android.app.ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND;
 
+import static com.android.modules.utils.build.SdkLevel.isAtLeastV;
 import static com.android.server.uwb.UwbSessionManager.SESSION_OPEN_RANGING;
 import static com.android.server.uwb.UwbTestUtils.DATA_PAYLOAD;
 import static com.android.server.uwb.UwbTestUtils.MAX_DATA_SIZE;
@@ -85,6 +86,8 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.verifyZeroInteractions;
 import static org.mockito.Mockito.when;
 
+import android.annotation.NonNull;
+import android.annotation.Nullable;
 import android.app.ActivityManager;
 import android.app.ActivityManager.OnUidImportanceListener;
 import android.app.AlarmManager;
@@ -94,6 +97,7 @@ import android.os.PersistableBundle;
 import android.os.Process;
 import android.os.RemoteException;
 import android.os.test.TestLooper;
+import android.permission.flags.Flags;
 import android.util.Pair;
 import android.uwb.IUwbAdapter;
 import android.uwb.IUwbRangingCallbacks;
@@ -2011,18 +2015,28 @@ public class UwbSessionManagerTest {
         assertThat(mTestLooper.isIdle()).isFalse();
     }
 
+    private AttributionSource.Builder setNextAttributionSource(
+            @NonNull AttributionSource.Builder builder,
+            @Nullable AttributionSource nextAttributionSource) {
+        if (isAtLeastV() && Flags.setNextAttributionSource()) {
+            return builder.setNextAttributionSource(nextAttributionSource);
+        } else {
+            return builder.setNext(nextAttributionSource);
+        }
+    }
+
     private UwbSession initUwbSessionForNonSystemAppInFgInChain() throws Exception {
         when(mUwbInjector.isSystemApp(UID_2, PACKAGE_NAME_2)).thenReturn(false);
         when(mUwbInjector.isForegroundAppOrService(UID_2, PACKAGE_NAME_2))
                 .thenReturn(true);
 
         // simulate system app triggered the request on behalf of a fg app in fg.
-        AttributionSource attributionSource = new AttributionSource.Builder(UID)
-                .setPackageName(PACKAGE_NAME)
-                .setNext(new AttributionSource.Builder(UID_2)
+        AttributionSource.Builder builder = new AttributionSource.Builder(UID)
+                .setPackageName(PACKAGE_NAME);
+        builder = setNextAttributionSource(builder, new AttributionSource.Builder(UID_2)
                         .setPackageName(PACKAGE_NAME_2)
-                        .build())
-                .build();
+                        .build());
+        AttributionSource attributionSource = builder.build();
 
         UwbSession uwbSession = setUpUwbSessionForExecution(attributionSource);
         mUwbSessionManager.initSession(attributionSource, uwbSession.getSessionHandle(),
@@ -2260,12 +2274,12 @@ public class UwbSessionManagerTest {
                 .thenReturn(false);
 
         // simulate system app triggered the request on behalf of a fg app not in fg.
-        AttributionSource attributionSource = new AttributionSource.Builder(UID)
-                .setPackageName(PACKAGE_NAME)
-                .setNext(new AttributionSource.Builder(UID_2)
+        AttributionSource.Builder builder = new AttributionSource.Builder(UID)
+                .setPackageName(PACKAGE_NAME);
+        builder = setNextAttributionSource(builder, new AttributionSource.Builder(UID_2)
                         .setPackageName(PACKAGE_NAME_2)
-                        .build())
-                .build();
+                        .build());
+        AttributionSource attributionSource = builder.build();
         UwbSession uwbSession = setUpUwbSessionForExecution(attributionSource);
         mUwbSessionManager.initSession(attributionSource, uwbSession.getSessionHandle(),
                 TEST_SESSION_ID, TEST_SESSION_TYPE, FiraParams.PROTOCOL_NAME,

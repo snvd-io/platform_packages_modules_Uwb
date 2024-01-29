@@ -109,7 +109,6 @@ public class UwbManagerTest {
     public static final int UWB_SESSION_STATE_IDLE = 0x03;
     public static final byte DEVICE_STATE_ACTIVE = 0x02;
     public static final int REASON_STATE_CHANGE_WITH_SESSION_MANAGEMENT_COMMANDS = 0x00;
-    public static final String FIRA_OPEN_SESSION_PARAM_KEY = "open_session_params_bundle";
 
     @Before
     public void setup() throws Exception {

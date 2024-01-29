@@ -30,7 +30,7 @@ filegroup {
     srcs: [
         "java/**/*.java",
         ":statslog-uwb-java-gen",
-        ":uwb_config"
+        ":uwb_config",
     ],
 }
 
@@ -39,7 +39,7 @@ java_library {
     name: "service-uwb-pre-jarjar",
     installable: false,
     defaults: ["service-uwb-common-defaults"],
-    srcs: [ ":service-uwb-srcs" ],
+    srcs: [":service-uwb-srcs"],
     required: ["libuwb_uci_jni_rust"],
     sdk_version: "system_server_current",
 
@@ -59,6 +59,7 @@ java_library {
 
     static_libs: [
         "android.hardware.uwb.fira_android-V3-java",
+        "com.uwb.support.aliro",
         "com.uwb.support.ccc",
         "com.uwb.support.fira",
         "com.uwb.support.generic",
@@ -129,7 +130,7 @@ genrule {
     name: "statslog-uwb-java-gen",
     tools: ["stats-log-api-gen"],
     cmd: "$(location stats-log-api-gen) --java $(out) --module uwb " +
-         " --javaPackage com.android.server.uwb.proto --javaClass UwbStatsLog" +
-         " --minApiLevel 33",
+        " --javaPackage com.android.server.uwb.proto --javaClass UwbStatsLog" +
+        " --minApiLevel 33",
     out: ["com/android/server/uwb/proto/UwbStatsLog.java"],
 }

@@ -8,6 +8,7 @@ android_test {
     static_libs: [
         "androidx.test.ext.junit",
         "androidx.test.rules",
+        "com.uwb.support.aliro",
         "com.uwb.support.ccc",
         "com.uwb.support.fira",
         "com.uwb.support.radar",

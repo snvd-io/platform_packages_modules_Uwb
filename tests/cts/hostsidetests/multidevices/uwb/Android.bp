@@ -13,6 +13,7 @@
 // limitations under the License.
 
 package {
+    default_team: "trendy_team_fwk_uwb",
     default_applicable_licenses: ["Android-Apache-2.0"],
 }
 
@@ -49,7 +50,7 @@ python_test_host {
     data: [
         // Package the snippet with the mobly test
         ":uwb_snippet",
-	"README.md",
+        "README.md",
     ],
     defaults: ["CtsUwbMultiDevicePythonDefaults"],
 }
@@ -71,7 +72,7 @@ python_test_host {
     data: [
         // Package the snippet with the mobly test
         ":uwb_snippet",
-	"README.md",
+        "README.md",
     ],
     defaults: ["CtsUwbMultiDevicePythonDefaults"],
 }

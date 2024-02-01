@@ -983,7 +983,10 @@ impl NotificationManager for NotificationManagerAndroid {
         debug!("UCI JNI: core notification callback.");
         let env = *self.env;
         env.with_local_frame(MAX_JAVA_OBJECTS_CAPACITY, || {
-            let env_chip_id_jobject = *self.env.new_string(&self.chip_id).unwrap();
+            let env_chip_id_jobject = *env.new_string(&self.chip_id).map_err(|e| {
+                error!("UCI JNI: failed to create Java String: {e:?}");
+                e
+            })?;
 
             match core_notification {
                 CoreNotification::DeviceStatus(device_state) => self.cached_jni_call(

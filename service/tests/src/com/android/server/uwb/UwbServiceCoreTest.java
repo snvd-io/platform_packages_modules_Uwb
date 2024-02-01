@@ -1751,6 +1751,19 @@ public class UwbServiceCoreTest {
     }
 
     @Test
+    public void testDeviceStateCallback_exeception() throws Exception {
+        when(mUwbInjector.getMultichipData())
+                .thenThrow(new IllegalStateException());
+        enableUwbWithCountryCodeChangedCallback();
+        try {
+             mUwbServiceCore.onDeviceStatusNotificationReceived(
+                     UwbUciConstants.DEVICE_STATE_ACTIVE, TEST_CHIP_ONE_CHIP_ID);
+        } catch (Exception e) {
+             fail("Unexpected exception "+ e);
+        }
+    }
+
+    @Test
     public void testRangingRoundsUpdateDtTag() throws Exception {
         enableUwbWithCountryCodeChangedCallback();
 

@@ -1,4 +1,5 @@
 package: "com.android.uwb.flags"
+container: "com.android.uwb"
 
 flag {
     name: "query_timestamp_micros"

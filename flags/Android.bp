@@ -22,6 +22,7 @@ package {
 aconfig_declarations {
     name: "uwb_aconfig_flags",
     package: "com.android.uwb.flags",
+    container: "com.android.uwb",
     srcs: ["uwb_flags.aconfig"],
 }
 

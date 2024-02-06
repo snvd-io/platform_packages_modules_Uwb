@@ -153,6 +153,8 @@ public class DeviceConfigFacadeTest {
                 .thenReturn(true);
         when(mResources.getBoolean(R.bool.uwb_disabled_until_first_toggle))
                 .thenReturn(false);
+        when(mResources.getBoolean(R.bool.persistent_cache_use_for_country_code_enabled))
+                .thenReturn(false);
 
         when(mContext.getResources()).thenReturn(mResources);
 
@@ -231,6 +233,7 @@ public class DeviceConfigFacadeTest {
         assertEquals(false, mDeviceConfigFacade.isCccAbsoluteUwbInitiationTimeEnabled());
         assertEquals(true, mDeviceConfigFacade.isLocationUseForCountryCodeEnabled());
         assertEquals(false, mDeviceConfigFacade.isUwbDisabledUntilFirstToggle());
+        assertEquals(false, mDeviceConfigFacade.isPersistentCacheUseForCountryCodeEnabled());
     }
 
     /**
@@ -340,6 +343,9 @@ public class DeviceConfigFacadeTest {
                 anyBoolean())).thenReturn(false);
         when(DeviceConfig.getBoolean(anyString(), eq("uwb_disabled_until_first_toggle"),
                 anyBoolean())).thenReturn(true);
+        when(DeviceConfig.getBoolean(anyString(),
+                eq("persistent_cache_use_for_country_code_enabled"),
+                anyBoolean())).thenReturn(true);
 
         mOnPropertiesChangedListenerCaptor.getValue().onPropertiesChanged(null);
         assertEquals(0, mDeviceConfigFacade.getPrimerFovDegree());
@@ -359,6 +365,7 @@ public class DeviceConfigFacadeTest {
         assertEquals(true, mDeviceConfigFacade.isCccAbsoluteUwbInitiationTimeEnabled());
         assertEquals(false, mDeviceConfigFacade.isLocationUseForCountryCodeEnabled());
         assertEquals(true, mDeviceConfigFacade.isUwbDisabledUntilFirstToggle());
+        assertEquals(true, mDeviceConfigFacade.isPersistentCacheUseForCountryCodeEnabled());
         when(DeviceConfig.getString(anyString(), eq("pose_source_type"),
                 anyString())).thenReturn("NONE");
         mOnPropertiesChangedListenerCaptor.getValue().onPropertiesChanged(null);

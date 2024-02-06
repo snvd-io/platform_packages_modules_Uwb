@@ -582,6 +582,7 @@ public class UwbServiceImpl extends IUwbAdapter.Stub {
                         @Override
                         public void onReceive(Context context, Intent intent) {
                             Log.i(TAG, "Airplane mode change detected");
+                            mUwbInjector.getUwbCountryCode().clearCachedCountryCode();
                             handleAirplaneOrSatelliteModeEvent();
                         }
                     },

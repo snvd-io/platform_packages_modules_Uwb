@@ -86,7 +86,8 @@ public class UwbSettingsStore {
             new Key<>("settings_toggle", true);
     public static final Key<String> SETTINGS_LOG_MODE =
             new Key<>("settings_log_mode", UciLogModeStore.Mode.DISABLED.getMode());
-
+    public static final Key<String> SETTINGS_CACHED_COUNTRY_CODE =
+            new Key<>("settings_cached_country_code", "");
     /******** Uwb shared pref keys ***************/
 
     private final Context mContext;

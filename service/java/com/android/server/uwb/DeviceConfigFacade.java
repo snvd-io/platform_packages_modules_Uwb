@@ -92,6 +92,7 @@ public class DeviceConfigFacade {
     private boolean mCccAbsoluteUwbInitiationTimeEnabled;
     // Flag to interpret CCC supported sync codes value as little endian
     private boolean mCccSupportedSyncCodesLittleEndian;
+    private boolean mPersistentCacheUseForCountryCodeEnabled;
 
     public DeviceConfigFacade(Handler handler, Context context) {
         mContext = context;
@@ -272,6 +273,13 @@ public class DeviceConfigFacade {
                 DeviceConfig.NAMESPACE_UWB,
                 "ccc_supported_sync_codes_little_endian",
                 mContext.getResources().getBoolean(R.bool.ccc_supported_sync_codes_little_endian)
+        );
+
+        mPersistentCacheUseForCountryCodeEnabled = DeviceConfig.getBoolean(
+                DeviceConfig.NAMESPACE_UWB,
+                "persistent_cache_use_for_country_code_enabled",
+                mContext.getResources().getBoolean(
+                        R.bool.persistent_cache_use_for_country_code_enabled)
         );
 
         // A little parsing and cleanup:
@@ -537,5 +545,12 @@ public class DeviceConfigFacade {
      */
     public boolean isCccSupportedSyncCodesLittleEndian() {
         return mCccSupportedSyncCodesLittleEndian;
+    }
+
+    /**
+     * Returns whether to use persistent cache in the algorithm to determine country code or not.
+     */
+    public boolean isPersistentCacheUseForCountryCodeEnabled() {
+        return mPersistentCacheUseForCountryCodeEnabled;
     }
 }

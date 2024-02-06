@@ -186,4 +186,10 @@
     If enabled, CCC supported sync codes value will be interpreted as little endian.
     -->
     <bool name = "ccc_supported_sync_codes_little_endian">false</bool>
+
+    <!-- Whether to use a persistent cache in the algorithm to determine country code or not.
+    If enabled, will fallback to the cache to determine device location for
+    UWB regulatory purposes when  other sources (telephony, wifi, location, etc) is not available.
+    -->
+    <bool name = "persistent_cache_use_for_country_code_enabled">false</bool>
 </resources>

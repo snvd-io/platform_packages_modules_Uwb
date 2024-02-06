@@ -16,6 +16,7 @@
 
 package com.android.server.uwb;
 
+import static com.android.server.uwb.UwbCountryCode.DEFAULT_COUNTRY_CODE;
 import static com.android.server.uwb.data.UwbUciConstants.STATUS_CODE_FAILED;
 import static com.android.server.uwb.data.UwbUciConstants.STATUS_CODE_OK;
 
@@ -93,6 +94,7 @@ public class UwbCountryCodeTest {
     @Mock UwbCountryCode.CountryCodeChangedListener mListener;
     @Mock DeviceConfigFacade mDeviceConfigFacade;
     @Mock FeatureFlags mFeatureFlags;
+    @Mock UwbSettingsStore mUwbSettingsStore;
 
     private TestLooper mTestLooper;
     private UwbCountryCode mUwbCountryCode;
@@ -146,6 +148,7 @@ public class UwbCountryCodeTest {
         when(mUwbInjector.isGeocoderPresent()).thenReturn(true);
         when(mDeviceConfigFacade.isLocationUseForCountryCodeEnabled()).thenReturn(true);
         when(mUwbInjector.getDeviceConfigFacade()).thenReturn(mDeviceConfigFacade);
+        when(mUwbInjector.getUwbSettingsStore()).thenReturn(mUwbSettingsStore);
         when(mPackageManager.hasSystemFeature(PackageManager.FEATURE_WIFI)).thenReturn(true);
         when(mNativeUwbManager.setCountryCode(any())).thenReturn(
                 (byte) STATUS_CODE_OK);
@@ -159,8 +162,8 @@ public class UwbCountryCodeTest {
     public void testSetDefaultCountryCodeWhenNoCountryCodeAvailable() {
         mUwbCountryCode.initialize();
         verify(mNativeUwbManager).setCountryCode(
-                UwbCountryCode.DEFAULT_COUNTRY_CODE.getBytes(StandardCharsets.UTF_8));
-        verify(mListener).onCountryCodeChanged(STATUS_CODE_OK, UwbCountryCode.DEFAULT_COUNTRY_CODE);
+                DEFAULT_COUNTRY_CODE.getBytes(StandardCharsets.UTF_8));
+        verify(mListener).onCountryCodeChanged(STATUS_CODE_OK, DEFAULT_COUNTRY_CODE);
     }
 
     @Test
@@ -442,7 +445,7 @@ public class UwbCountryCodeTest {
         verify(mContext).registerReceiver(
                 mTelephonyCountryCodeReceiverCaptor.capture(), any(), any(), any());
         verify(mNativeUwbManager).setCountryCode(
-                UwbCountryCode.DEFAULT_COUNTRY_CODE.getBytes(StandardCharsets.UTF_8));
+                DEFAULT_COUNTRY_CODE.getBytes(StandardCharsets.UTF_8));
 
         Intent intent = new Intent(TelephonyManager.ACTION_NETWORK_COUNTRY_CHANGED)
                 .putExtra(TelephonyManager.EXTRA_NETWORK_COUNTRY, "")
@@ -500,6 +503,57 @@ public class UwbCountryCodeTest {
         clearInvocations(mNativeUwbManager, mListener);
 
         mUwbCountryCode.clearOverrideCountryCode();
+        verify(mNativeUwbManager).setCountryCode(
+                TEST_COUNTRY_CODE.getBytes(StandardCharsets.UTF_8));
+        verify(mListener).onCountryCodeChanged(STATUS_CODE_OK, TEST_COUNTRY_CODE);
+    }
+
+    @Test
+    public void testUseCacheWhenTelephonyAndWifiNotAvailable() {
+        when(mDeviceConfigFacade.isPersistentCacheUseForCountryCodeEnabled()).thenReturn(true);
+        mUwbCountryCode.initialize();
+        verify(mContext).registerReceiver(
+                mTelephonyCountryCodeReceiverCaptor.capture(), any(), any(), any());
+        verify(mWifiManager).registerActiveCountryCodeChangedCallback(
+                any(), mWifiCountryCodeReceiverCaptor.capture());
+        clearInvocations(mNativeUwbManager, mListener);
+
+        // Set other country code sources
+        Intent intent = new Intent(TelephonyManager.ACTION_NETWORK_COUNTRY_CHANGED)
+                .putExtra(TelephonyManager.EXTRA_NETWORK_COUNTRY, TEST_COUNTRY_CODE)
+                .putExtra(SubscriptionManager.EXTRA_SLOT_INDEX, TEST_SLOT_IDX);
+        mTelephonyCountryCodeReceiverCaptor.getValue().onReceive(mock(Context.class), intent);
+        mWifiCountryCodeReceiverCaptor.getValue().onActiveCountryCodeChanged(TEST_COUNTRY_CODE);
+        verify(mNativeUwbManager).setCountryCode(
+                TEST_COUNTRY_CODE.getBytes(StandardCharsets.UTF_8));
+        verify(mListener).onCountryCodeChanged(STATUS_CODE_OK, TEST_COUNTRY_CODE);
+        verify(mUwbSettingsStore).put(
+                UwbSettingsStore.SETTINGS_CACHED_COUNTRY_CODE, TEST_COUNTRY_CODE);
+        clearInvocations(mNativeUwbManager, mListener);
+
+        // Clear all other country code sources and ensure we use the cache.
+        intent = new Intent(TelephonyManager.ACTION_NETWORK_COUNTRY_CHANGED)
+                .putExtra(TelephonyManager.EXTRA_NETWORK_COUNTRY, DEFAULT_COUNTRY_CODE)
+                .putExtra(SubscriptionManager.EXTRA_SLOT_INDEX, TEST_SLOT_IDX);
+        mTelephonyCountryCodeReceiverCaptor.getValue().onReceive(mock(Context.class), intent);
+        mWifiCountryCodeReceiverCaptor.getValue().onActiveCountryCodeChanged(DEFAULT_COUNTRY_CODE);
+        verifyNoMoreInteractions(mNativeUwbManager, mListener);
+
+        // Now clear the cache and ensure we reset the country code.
+        mUwbCountryCode.clearCachedCountryCode();
+        mUwbCountryCode.setCountryCode(true);
+        verify(mNativeUwbManager).setCountryCode(
+                DEFAULT_COUNTRY_CODE.getBytes(StandardCharsets.UTF_8));
+        verify(mListener).onCountryCodeChanged(STATUS_CODE_OK, DEFAULT_COUNTRY_CODE);
+    }
+
+    @Test
+    public void testUsePersistentCacheAtBootupWhenTelephonyAndWifiNotAvailable() {
+        when(mDeviceConfigFacade.isPersistentCacheUseForCountryCodeEnabled()).thenReturn(true);
+        when(mUwbSettingsStore.get(UwbSettingsStore.SETTINGS_CACHED_COUNTRY_CODE))
+                .thenReturn(TEST_COUNTRY_CODE);
+        mUwbCountryCode.initialize();
+        verify(mUwbSettingsStore).get(UwbSettingsStore.SETTINGS_CACHED_COUNTRY_CODE);
         verify(mNativeUwbManager).setCountryCode(
                 TEST_COUNTRY_CODE.getBytes(StandardCharsets.UTF_8));
         verify(mListener).onCountryCodeChanged(STATUS_CODE_OK, TEST_COUNTRY_CODE);

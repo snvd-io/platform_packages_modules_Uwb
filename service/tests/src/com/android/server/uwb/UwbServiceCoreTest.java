@@ -433,6 +433,7 @@ public class UwbServiceCoreTest {
         mTestLooper.dispatchAll();
 
         verify(mNativeUwbManager).doInitialize();
+        verify(mUwbMetrics).logUwbStateChangeEvent(true, false, false);
         assertThat(mUwbServiceCore.getAdapterState()).isEqualTo(AdapterState.STATE_DISABLED);
         verify(initFailCb).onFailure();
         verify(mDeviceConfigFacade, never()).isDeviceErrorBugreportEnabled();
@@ -477,6 +478,7 @@ public class UwbServiceCoreTest {
         enableUwb(null);
 
         verify(mNativeUwbManager).doInitialize();
+        verify(mUwbMetrics).logUwbStateChangeEvent(true, true, false);
         verify(mUwbCountryCode).setCountryCode(true);
         verify(cb).onAdapterStateChanged(UwbManager.AdapterStateCallback.STATE_DISABLED,
                 StateChangeReason.SYSTEM_REGULATION);
@@ -530,6 +532,7 @@ public class UwbServiceCoreTest {
         // Verify that UWB adapter state is notified as DISABLED, and future calls to
         // getAdapterState() also return the state as DISABLED.
         verify(mNativeUwbManager).doInitialize();
+        verify(mUwbMetrics).logUwbStateChangeEvent(true, true, false);
         verify(mUwbCountryCode).setCountryCode(true);
         verify(cb).onAdapterStateChanged(UwbManager.AdapterStateCallback.STATE_DISABLED,
                 StateChangeReason.SYSTEM_REGULATION);
@@ -733,6 +736,7 @@ public class UwbServiceCoreTest {
         enableUwbWithCountryCodeChangedCallback();
 
         verify(mNativeUwbManager).doInitialize();
+        verify(mUwbMetrics).logUwbStateChangeEvent(true, true, false);
         verify(cb).onAdapterStateChanged(UwbManager.AdapterStateCallback.STATE_ENABLED_INACTIVE,
                 StateChangeReason.SYSTEM_POLICY);
         verifyNoMoreInteractions(cb);
@@ -745,6 +749,7 @@ public class UwbServiceCoreTest {
         disableUwb();
 
         verify(mNativeUwbManager).doDeinitialize();
+        verify(mUwbMetrics).logUwbStateChangeEvent(false, true, false);
         verify(cb).onAdapterStateChanged(UwbManager.AdapterStateCallback.STATE_DISABLED,
                 StateChangeReason.SYSTEM_POLICY);
         assertThat(mUwbServiceCore.getAdapterState()).isEqualTo(AdapterState.STATE_DISABLED);

@@ -45,6 +45,7 @@ import java.util.Deque;
 public class UwbMetrics {
     private static final String TAG = "UwbMetrics";
 
+    private static final int MAX_STATE_CHANGES = 20;
     private static final int MAX_RANGING_SESSIONS = 128;
     private static final int MAX_RANGING_REPORTS = 1024;
     public static final int INVALID_DISTANCE = 0xFFFF;
@@ -58,12 +59,40 @@ public class UwbMetrics {
             (int) UwbUciConstants.RANGING_MEASUREMENT_TYPE_DL_TDOA,
             (int) UwbUciConstants.RANGING_MEASUREMENT_TYPE_OWR_AOA);
     private final UwbInjector mUwbInjector;
+    private final Deque<UwbStateChangeInfo> mUwbStateChangeInfoList = new ArrayDeque<>();
     private final Deque<RangingSessionStats> mRangingSessionList = new ArrayDeque<>();
     private final SparseArray<RangingSessionStats> mOpenedSessionMap = new SparseArray<>();
     private final Deque<RangingReportEvent> mRangingReportList = new ArrayDeque<>();
     private int mNumApps = 0;
     private long mLastRangingDataLogTimeMs;
     private final Object mLock = new Object();
+
+    public class UwbStateChangeInfo {
+        private boolean mEnable;
+        private boolean mSucceeded;
+        private long mInitTimeWallClockMs;
+
+        public UwbStateChangeInfo(boolean enable, boolean succeeded) {
+            mEnable = enable;
+            mSucceeded = succeeded;
+            mInitTimeWallClockMs = mUwbInjector.getWallClockMillis();
+        }
+
+        @Override
+        public String toString() {
+            StringBuilder sb = new StringBuilder();
+            sb.append("initTime=");
+            Calendar c = Calendar.getInstance();
+            synchronized (mLock) {
+                c.setTimeInMillis(mInitTimeWallClockMs);
+                sb.append(mInitTimeWallClockMs == 0 ? "            <null>" :
+                        String.format("%tm-%td %tH:%tM:%tS.%tL", c, c, c, c, c, c));
+                sb.append(", mEnable=").append(mEnable);
+                sb.append(", mSucceeded=").append(mSucceeded);
+                return sb.toString();
+            }
+        }
+    }
 
     /**
      * The class storing the stats of a ranging session.
@@ -346,6 +375,28 @@ public class UwbMetrics {
 
     public UwbMetrics(UwbInjector uwbInjector) {
         mUwbInjector = uwbInjector;
+    }
+
+    /**
+     * Log UWB state change event.
+     */
+    public void logUwbStateChangeEvent(boolean enable, boolean succeeded,
+            boolean isFirstInitAttempt) {
+        synchronized (mLock) {
+            // If past maximum events, start removing the oldest
+            while (mUwbStateChangeInfoList.size() >= MAX_STATE_CHANGES) {
+                mUwbStateChangeInfoList.removeFirst();
+            }
+            UwbStateChangeInfo uwbStateChangeInfo = new UwbStateChangeInfo(enable, succeeded);
+            mUwbStateChangeInfoList.add(uwbStateChangeInfo);
+            if (enable) {
+                if (succeeded) {
+                    incrementDeviceInitSuccessCount();
+                } else {
+                    incrementDeviceInitFailureCount(isFirstInitAttempt);
+                }
+            }
+        }
     }
 
     /**
@@ -668,14 +719,14 @@ public class UwbMetrics {
     /**
      * Increment the count of device initialization success
      */
-    public synchronized void incrementDeviceInitSuccessCount() {
+    private void incrementDeviceInitSuccessCount() {
         mNumDeviceInitSuccess++;
     }
 
     /**
      * Increment the count of device initialization failure
      */
-    public synchronized void incrementDeviceInitFailureCount(boolean isFirstInitAttempt) {
+    private void incrementDeviceInitFailureCount(boolean isFirstInitAttempt) {
         mNumDeviceInitFailure++;
         if (isFirstInitAttempt) {
             mFirstDeviceInitFailure = true;
@@ -709,6 +760,10 @@ public class UwbMetrics {
     public void dump(FileDescriptor fd, PrintWriter pw, String[] args) {
         synchronized (mLock) {
             pw.println("---- Dump of UwbMetrics ----");
+            pw.println("-- mUwbStateChangeInfoList --");
+            for (UwbStateChangeInfo stateChangeInfo: mUwbStateChangeInfoList) {
+                pw.println(stateChangeInfo.toString());
+            }
             pw.println("-- mRangingSessionList --");
             for (RangingSessionStats stats: mRangingSessionList) {
                 pw.println(stats.toString());

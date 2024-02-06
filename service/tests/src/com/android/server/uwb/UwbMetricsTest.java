@@ -451,15 +451,15 @@ public class UwbMetricsTest {
 
     @Test
     public void testReportDeviceSuccessErrorCount() throws Exception {
-        mUwbMetrics.incrementDeviceInitFailureCount(true);
+        mUwbMetrics.logUwbStateChangeEvent(true, false, true);
         ExtendedMockito.verify(() -> UwbStatsLog.write(UwbStatsLog.UWB_DEVICE_ERROR_REPORTED,
                 UwbStatsLog.UWB_DEVICE_ERROR_REPORTED__TYPE__INIT_ERROR), times(0));
 
-        mUwbMetrics.incrementDeviceInitFailureCount(false);
+        mUwbMetrics.logUwbStateChangeEvent(true, false, false);
         ExtendedMockito.verify(() -> UwbStatsLog.write(UwbStatsLog.UWB_DEVICE_ERROR_REPORTED,
                 UwbStatsLog.UWB_DEVICE_ERROR_REPORTED__TYPE__INIT_ERROR));
 
-        mUwbMetrics.incrementDeviceInitSuccessCount();
+        mUwbMetrics.logUwbStateChangeEvent(true, true, false);
         mUwbMetrics.incrementDeviceStatusErrorCount();
         ExtendedMockito.verify(() -> UwbStatsLog.write(UwbStatsLog.UWB_DEVICE_ERROR_REPORTED,
                 UwbStatsLog.UWB_DEVICE_ERROR_REPORTED__TYPE__DEVICE_STATUS_ERROR));

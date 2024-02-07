@@ -43,20 +43,20 @@ import static com.android.server.uwb.config.CapabilityParam.CCC_SUPPORTED_UWB_CO
 import static com.android.server.uwb.config.CapabilityParam.CCC_SUPPORTED_UWBS_MAX_PPM;
 import static com.android.server.uwb.config.CapabilityParam.CCC_SUPPORTED_VERSIONS;
 
-import static com.google.uwb.support.ccc.CccParams.CHAPS_PER_SLOT_12;
-import static com.google.uwb.support.ccc.CccParams.CHAPS_PER_SLOT_24;
-import static com.google.uwb.support.ccc.CccParams.CHAPS_PER_SLOT_3;
-import static com.google.uwb.support.ccc.CccParams.CHAPS_PER_SLOT_4;
-import static com.google.uwb.support.ccc.CccParams.CHAPS_PER_SLOT_6;
-import static com.google.uwb.support.ccc.CccParams.CHAPS_PER_SLOT_8;
-import static com.google.uwb.support.ccc.CccParams.CHAPS_PER_SLOT_9;
-import static com.google.uwb.support.ccc.CccParams.HOPPING_CONFIG_MODE_ADAPTIVE;
-import static com.google.uwb.support.ccc.CccParams.HOPPING_CONFIG_MODE_CONTINUOUS;
-import static com.google.uwb.support.ccc.CccParams.HOPPING_CONFIG_MODE_NONE;
-import static com.google.uwb.support.ccc.CccParams.HOPPING_SEQUENCE_AES;
-import static com.google.uwb.support.ccc.CccParams.HOPPING_SEQUENCE_DEFAULT;
-import static com.google.uwb.support.ccc.CccParams.UWB_CHANNEL_5;
-import static com.google.uwb.support.ccc.CccParams.UWB_CHANNEL_9;
+import static com.google.uwb.support.aliro.AliroParams.CHAPS_PER_SLOT_12;
+import static com.google.uwb.support.aliro.AliroParams.CHAPS_PER_SLOT_24;
+import static com.google.uwb.support.aliro.AliroParams.CHAPS_PER_SLOT_3;
+import static com.google.uwb.support.aliro.AliroParams.CHAPS_PER_SLOT_4;
+import static com.google.uwb.support.aliro.AliroParams.CHAPS_PER_SLOT_6;
+import static com.google.uwb.support.aliro.AliroParams.CHAPS_PER_SLOT_8;
+import static com.google.uwb.support.aliro.AliroParams.CHAPS_PER_SLOT_9;
+import static com.google.uwb.support.aliro.AliroParams.HOPPING_CONFIG_MODE_ADAPTIVE;
+import static com.google.uwb.support.aliro.AliroParams.HOPPING_CONFIG_MODE_CONTINUOUS;
+import static com.google.uwb.support.aliro.AliroParams.HOPPING_CONFIG_MODE_NONE;
+import static com.google.uwb.support.aliro.AliroParams.HOPPING_SEQUENCE_AES;
+import static com.google.uwb.support.aliro.AliroParams.HOPPING_SEQUENCE_DEFAULT;
+import static com.google.uwb.support.aliro.AliroParams.UWB_CHANNEL_5;
+import static com.google.uwb.support.aliro.AliroParams.UWB_CHANNEL_9;
 
 import android.util.Log;
 

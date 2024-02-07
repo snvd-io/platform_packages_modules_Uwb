@@ -41,6 +41,8 @@ import com.android.server.uwb.data.UwbUciConstants;
 import com.android.server.uwb.params.TlvUtil;
 import com.android.server.uwb.util.UwbUtil;
 
+import com.google.uwb.support.aliro.AliroParams;
+import com.google.uwb.support.aliro.AliroRangingReconfiguredParams;
 import com.google.uwb.support.base.Params;
 import com.google.uwb.support.ccc.CccParams;
 import com.google.uwb.support.ccc.CccRangingReconfiguredParams;
@@ -230,6 +232,9 @@ public class UwbSessionNotificationManager {
         if (Objects.equals(uwbSession.getProtocolName(), CccParams.PROTOCOL_NAME)) {
             // Why are there no params defined for this bundle?
             params = new CccRangingReconfiguredParams.Builder().build().toBundle();
+        } else if (Objects.equals(uwbSession.getProtocolName(), AliroParams.PROTOCOL_NAME)) {
+            // Why are there no params defined for this bundle?
+            params = new AliroRangingReconfiguredParams.Builder().build().toBundle();
         } else {
             // No params defined for FiRa reconfigure.
             params = new PersistableBundle();

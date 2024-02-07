@@ -20,6 +20,8 @@ import android.uwb.RangingChangeReason;
 
 import com.android.server.uwb.data.UwbUciConstants;
 
+import com.google.uwb.support.aliro.AliroParams;
+import com.google.uwb.support.aliro.AliroRangingError;
 import com.google.uwb.support.base.Params;
 import com.google.uwb.support.ccc.CccParams;
 import com.google.uwb.support.ccc.CccRangingError;
@@ -110,11 +112,25 @@ public class UwbSessionNotificationHelper {
         }
     }
 
+    private static @AliroParams.ProtocolError int convertUciStatusToApiAliroProtocolError(
+            int status) {
+        switch (status) {
+            case UwbUciConstants.STATUS_CODE_ERROR_SESSION_NOT_EXIST:
+                return AliroParams.PROTOCOL_ERROR_NOT_FOUND;
+            default:
+                return AliroParams.PROTOCOL_ERROR_UNKNOWN;
+        }
+    }
+
     public static PersistableBundle convertUciStatusToParam(String protocolName, int status) {
         Params c;
         if (protocolName.equals(CccParams.PROTOCOL_NAME)) {
             c = new CccRangingError.Builder()
                     .setError(convertUciStatusToApiCccProtocolError(status))
+                    .build();
+        } else if (protocolName.equals(AliroParams.PROTOCOL_NAME)) {
+            c = new AliroRangingError.Builder()
+                    .setError(convertUciStatusToApiAliroProtocolError(status))
                     .build();
         } else {
             c = new FiraStatusCode.Builder().setStatusCode(status).build();

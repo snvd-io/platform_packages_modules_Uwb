@@ -100,6 +100,7 @@ public class DeviceConfigFacade {
     // for a CCC ranging session.
     private boolean mCccSupportedRangeDataNtfConfig;
     private boolean mPersistentCacheUseForCountryCodeEnabled;
+    private boolean mHwIdleTurnOffEnabled;
 
     public DeviceConfigFacade(Handler handler, Context context) {
         mContext = context;
@@ -305,6 +306,12 @@ public class DeviceConfigFacade {
                 "persistent_cache_use_for_country_code_enabled",
                 mContext.getResources().getBoolean(
                         R.bool.persistent_cache_use_for_country_code_enabled)
+        );
+
+        mHwIdleTurnOffEnabled = DeviceConfig.getBoolean(
+                DeviceConfig.NAMESPACE_UWB,
+                "hw_idle_turn_off_enabled",
+                mContext.getResources().getBoolean(R.bool.hw_idle_turn_off_enabled)
         );
 
         // A little parsing and cleanup:
@@ -603,5 +610,12 @@ public class DeviceConfigFacade {
      */
     public boolean isPersistentCacheUseForCountryCodeEnabled() {
         return mPersistentCacheUseForCountryCodeEnabled;
+    }
+
+    /**
+     * Returns whether hardware idle turn off is enabled or not.
+     */
+    public boolean isHwIdleTurnOffEnabled() {
+        return mHwIdleTurnOffEnabled;
     }
 }

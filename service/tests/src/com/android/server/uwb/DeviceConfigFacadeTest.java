@@ -151,6 +151,8 @@ public class DeviceConfigFacadeTest {
                 .thenReturn(false);
         when(mResources.getBoolean(R.bool.persistent_cache_use_for_country_code_enabled))
                 .thenReturn(false);
+        when(mResources.getBoolean(R.bool.hw_idle_turn_off_enabled))
+                .thenReturn(false);
         when(mContext.getResources()).thenReturn(mResources);
 
         mDeviceConfigFacade = new DeviceConfigFacade(new Handler(mLooper.getLooper()),
@@ -227,6 +229,7 @@ public class DeviceConfigFacadeTest {
         assertEquals(false, mDeviceConfigFacade.isCccRangingStoppedParamsSendEnabled());
         assertEquals(false, mDeviceConfigFacade.isCccAbsoluteUwbInitiationTimeEnabled());
         assertEquals(false, mDeviceConfigFacade.isPersistentCacheUseForCountryCodeEnabled());
+        assertEquals(false, mDeviceConfigFacade.isHwIdleTurnOffEnabled());
     }
 
     /**
@@ -335,6 +338,8 @@ public class DeviceConfigFacadeTest {
         when(DeviceConfig.getBoolean(anyString(),
                 eq("persistent_cache_use_for_country_code_enabled"),
                 anyBoolean())).thenReturn(true);
+        when(DeviceConfig.getBoolean(anyString(), eq("hw_idle_turn_off_enabled"),
+                anyBoolean())).thenReturn(true);
 
         mOnPropertiesChangedListenerCaptor.getValue().onPropertiesChanged(null);
         assertEquals(0, mDeviceConfigFacade.getPrimerFovDegree());
@@ -353,6 +358,7 @@ public class DeviceConfigFacadeTest {
         assertEquals(true, mDeviceConfigFacade.isCccRangingStoppedParamsSendEnabled());
         assertEquals(true, mDeviceConfigFacade.isCccAbsoluteUwbInitiationTimeEnabled());
         assertEquals(true, mDeviceConfigFacade.isPersistentCacheUseForCountryCodeEnabled());
+        assertEquals(true, mDeviceConfigFacade.isHwIdleTurnOffEnabled());
         when(DeviceConfig.getString(anyString(), eq("pose_source_type"),
                 anyString())).thenReturn("NONE");
         mOnPropertiesChangedListenerCaptor.getValue().onPropertiesChanged(null);

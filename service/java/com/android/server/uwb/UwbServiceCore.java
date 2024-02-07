@@ -207,7 +207,7 @@ public class UwbServiceCore implements INativeUwbManager.DeviceNotification,
         return getAdapterState() != AdapterStateCallback.STATE_DISABLED;
     }
 
-    private boolean isUwbChipEnabled() {
+    private boolean isUwbEnabledInternal() {
         synchronized (UwbServiceCore.this) {
             return getInternalAdapterState() != AdapterStateCallback.STATE_DISABLED;
         }
@@ -758,10 +758,10 @@ public class UwbServiceCore implements INativeUwbManager.DeviceNotification,
     public synchronized void setEnabled(boolean enabled) {
         int task = enabled ? TASK_ENABLE : TASK_DISABLE;
 
-        if (enabled && isUwbChipEnabled()) {
-            Log.w(TAG, "Uwb chip is already enabled");
-        } else if (!enabled && !isUwbChipEnabled()) {
-            Log.w(TAG, "Uwb chip is already disabled");
+        if (enabled && isUwbEnabledInternal()) {
+            Log.w(TAG, "Uwb is already enabled");
+        } else if (!enabled && !isUwbEnabledInternal()) {
+            Log.w(TAG, "Uwb is already disabled");
         }
 
         mUwbTask.execute(task);
@@ -921,7 +921,7 @@ public class UwbServiceCore implements INativeUwbManager.DeviceNotification,
         }
 
         private void handleEnable() {
-            if (isUwbChipEnabled()) {
+            if (isUwbEnabledInternal()) {
                 Log.i(TAG, "UWB chip is already enabled, notify adapter state = "
                         + getAdapterState());
                 return;
@@ -996,7 +996,7 @@ public class UwbServiceCore implements INativeUwbManager.DeviceNotification,
         }
 
         private void handleDisable() {
-            if (!isUwbChipEnabled()) {
+            if (!isUwbEnabledInternal()) {
                 Log.i(TAG, "UWB chip is already disabled, notify adapter state = "
                         + getAdapterState());
                 return;

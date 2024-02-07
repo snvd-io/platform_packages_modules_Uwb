@@ -209,4 +209,9 @@
     UWB regulatory purposes when  other sources (telephony, wifi, location, etc) is not available.
     -->
     <bool name = "persistent_cache_use_for_country_code_enabled">false</bool>
+
+    <!-- Whether hardware idle turn off is enabled or not.
+    If enabled, some clients must explicitly request UWB to be enabled on top of user setting.
+    -->
+    <bool name = "hw_idle_turn_off_enabled">false</bool>
 </resources>

@@ -161,7 +161,9 @@ public class UwbServiceImpl extends IUwbAdapter.Stub {
         pw.println();
         mUwbInjector.getUwbConfigStore().dump(fd, pw, args);
         pw.println();
-        dumpPowerStats(fd, pw, args);
+        if (isUwbEnabled()) {
+            dumpPowerStats(fd, pw, args);
+        }
     }
 
     private void dumpPowerStats(FileDescriptor fd, PrintWriter pw, String[] args) {
@@ -598,6 +600,7 @@ public class UwbServiceImpl extends IUwbAdapter.Stub {
                         @Override
                         public void onReceive(Context context, Intent intent) {
                             Log.i(TAG, "Airplane mode change detected");
+                            mUwbInjector.getUwbCountryCode().clearCachedCountryCode();
                             handleAirplaneOrSatelliteModeEvent();
                         }
                     },

@@ -25,6 +25,7 @@ import android.annotation.NonNull;
 import android.content.AttributionSource;
 import android.content.Context;
 import android.os.Handler;
+import android.os.IBinder;
 import android.os.Looper;
 import android.os.Message;
 import android.os.PersistableBundle;
@@ -80,6 +81,7 @@ import java.io.FileDescriptor;
 import java.io.PrintWriter;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -145,11 +147,32 @@ public class UwbServiceCore implements INativeUwbManager.DeviceNotification,
      * to remove the check for token since we want to uniquely identify client (not different binder
      * tokens* from the same client).
      */
-    private class AttributionSourceHolder {
+    private class AttributionSourceHolder implements IBinder.DeathRecipient {
         private final AttributionSource mAttributionSource;
+        private final IBinder mBinder;
 
-        AttributionSourceHolder(AttributionSource attributionSource) {
+        AttributionSourceHolder(AttributionSource attributionSource, IBinder binder) {
             mAttributionSource = attributionSource;
+            mBinder = binder;
+        }
+
+        public AttributionSource getAttributionSource() {
+            return mAttributionSource;
+        }
+
+        public void linkToDeath() {
+            try {
+                mBinder.linkToDeath(this, 0);
+            } catch (RemoteException e) {
+                Log.e(TAG, "Failed to register for death recipient for "
+                        + mAttributionSource);
+            }
+        }
+
+        public void unlinkToDeath() {
+            try {
+                mBinder.unlinkToDeath(this, 0);
+            } catch (NoSuchElementException e) { }
         }
 
         @Override
@@ -176,6 +199,11 @@ public class UwbServiceCore implements INativeUwbManager.DeviceNotification,
             return mAttributionSource.toString();
         }
 
+        @Override
+        public void binderDied() {
+            Log.i(TAG, "binderDied : reset hw enable for " + this);
+            mUwbClientHwState.setEnabled(this, false);
+        }
     }
 
     /**
@@ -184,12 +212,35 @@ public class UwbServiceCore implements INativeUwbManager.DeviceNotification,
     private class UwbClientHwState {
         private final Map<AttributionSourceHolder, Boolean> mMap = new HashMap<>();
 
-        public void setEnabled(AttributionSource attributionSource, boolean enable) {
-            mMap.put(new AttributionSourceHolder(attributionSource), Boolean.valueOf(enable));
+        public void setEnabled(AttributionSourceHolder attributionSourceHolder, boolean enable) {
+            Boolean prevValue = mMap.put(attributionSourceHolder, Boolean.valueOf(enable));
+            if (prevValue == null) prevValue = false;
+            // If enabling, add link to death.
+            if (!prevValue && enable) {
+                attributionSourceHolder.linkToDeath();
+            }
+            // If disabling, remove link to death.
+            if (prevValue && !enable) {
+                attributionSourceHolder.unlinkToDeath();
+            }
         }
 
-        public boolean isEnabled(AttributionSource attributionSource) {
-            return mMap.getOrDefault(new AttributionSourceHolder(attributionSource), false);
+        /**
+         * We use AttributionSourceHolder to linkToDeath, so avoid creating duplicate objects in the
+         * map for the same client.
+         */
+        public AttributionSourceHolder getOrCreate(
+                AttributionSource attributionSource, IBinder binder) {
+            for (AttributionSourceHolder k : mMap.keySet()) {
+                if (Objects.equals(k.getAttributionSource(), attributionSource)) {
+                    return k;
+                }
+            }
+            return new AttributionSourceHolder(attributionSource, binder);
+        }
+
+        public boolean isEnabled(AttributionSourceHolder attributionSourceHolder) {
+            return mMap.getOrDefault(attributionSourceHolder, false);
         }
 
         /**
@@ -852,29 +903,32 @@ public class UwbServiceCore implements INativeUwbManager.DeviceNotification,
     }
 
     public synchronized void requestHwEnabled(
-            boolean enabled, AttributionSource attributionSource) {
+            boolean enabled, AttributionSource attributionSource, IBinder binder) {
         int task = enabled ? TASK_HW_ENABLE : TASK_HW_DISABLE;
-
-        if (enabled && mUwbClientHwState.isEnabled(attributionSource)) {
+        AttributionSourceHolder attributionSourceHolder =
+                mUwbClientHwState.getOrCreate(attributionSource, binder);
+        if (enabled && mUwbClientHwState.isEnabled(attributionSourceHolder)) {
             Log.w(TAG, "Uwb hardware is already enabled by " + attributionSource);
-        } else if (!enabled && !mUwbClientHwState.isEnabled(attributionSource)) {
+        } else if (!enabled && !mUwbClientHwState.isEnabled(attributionSourceHolder)) {
             Log.w(TAG, "Uwb hardware is already disabled by " + attributionSource);
         }
-
-        mUwbTask.execute(task, attributionSource);
+        mUwbTask.execute(task, attributionSourceHolder);
     }
 
-    private void updateHwState(AttributionSource attributionSource, boolean enable) {
-        Log.d(TAG, "updateHwState(): state=" + enable + ", attributionSource=" + attributionSource);
+    private void updateHwState(AttributionSourceHolder attributionSourceHolder, boolean enable) {
+        Log.d(TAG, "updateHwState(): state=" + enable
+                + ", attributionSource=" + attributionSourceHolder);
         synchronized (UwbServiceCore.this) {
-            mUwbClientHwState.setEnabled(attributionSource, enable);
+            mUwbClientHwState.setEnabled(attributionSourceHolder, enable);
             Log.d(TAG, "mUwbClientHwState= " + mUwbClientHwState);
         }
     }
 
     public boolean isHwEnableRequested(AttributionSource attributionSource) {
         synchronized (UwbServiceCore.this) {
-            return mUwbClientHwState.isEnabled(attributionSource);
+            AttributionSourceHolder attributionSourceHolder =
+                    mUwbClientHwState.getOrCreate(attributionSource, null);
+            return mUwbClientHwState.isEnabled(attributionSourceHolder);
         }
     }
 
@@ -979,11 +1033,11 @@ public class UwbServiceCore implements INativeUwbManager.DeviceNotification,
                     break;
 
                 case TASK_HW_ENABLE:
-                    handleHwEnable((AttributionSource) msg.obj);
+                    handleHwEnable((AttributionSourceHolder) msg.obj);
                     break;
 
                 case TASK_HW_DISABLE:
-                    handleHwDisable((AttributionSource) msg.obj);
+                    handleHwDisable((AttributionSourceHolder) msg.obj);
                     break;
 
                 case TASK_RESTART:
@@ -1176,26 +1230,26 @@ public class UwbServiceCore implements INativeUwbManager.DeviceNotification,
             deInitializeHw();
         }
 
-        private void handleHwEnable(AttributionSource attributionSource) {
-            if (mUwbClientHwState.isEnabled(attributionSource)) {
-                Log.i(TAG, "UWB hardware is already enabled by " + attributionSource);
+        private void handleHwEnable(AttributionSourceHolder attributionSourceHolder) {
+            if (mUwbClientHwState.isEnabled(attributionSourceHolder)) {
+                Log.i(TAG, "UWB hardware is already enabled by " + attributionSourceHolder);
                 return;
             }
             boolean prevShouldHwBeEnabled = mUwbClientHwState.shouldHwBeEnabled();
-            updateHwState(attributionSource, true);
+            updateHwState(attributionSourceHolder, true);
             if (!prevShouldHwBeEnabled && mUwbClientHwState.shouldHwBeEnabled()) {
                 Log.i(TAG, "UWB Hw requested, enabling");
                 initializeHw();
             }
         }
 
-        private void handleHwDisable(AttributionSource attributionSource) {
-            if (!mUwbClientHwState.isEnabled(attributionSource)) {
-                Log.i(TAG, "UWB hardware is already disabled by " + attributionSource);
+        private void handleHwDisable(AttributionSourceHolder attributionSourceHolder) {
+            if (!mUwbClientHwState.isEnabled(attributionSourceHolder)) {
+                Log.i(TAG, "UWB hardware is already disabled by " + attributionSourceHolder);
                 return;
             }
             boolean prevShouldHwBeEnabled = mUwbClientHwState.shouldHwBeEnabled();
-            updateHwState(attributionSource, false);
+            updateHwState(attributionSourceHolder, false);
             if (prevShouldHwBeEnabled && !mUwbClientHwState.shouldHwBeEnabled()) {
                 Log.i(TAG, "UWB Hw not requested, disabling");
                 deInitializeHw();

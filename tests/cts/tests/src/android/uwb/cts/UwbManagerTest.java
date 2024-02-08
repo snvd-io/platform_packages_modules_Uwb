@@ -134,7 +134,7 @@ public class UwbManagerTest {
             }
             if (mUwbManager.isUwbHwIdleTurnOffEnabled()) {
                 // If HW idle mode is turned on, vote for the UWB hardware for tests to pass.
-                requestUwbHwEnabledAndWaitForCompletion(true);
+                requestUwbHwEnabledAndWaitForCompletion(true, mUwbManager, true);
             }
             mDefaultChipId = mUwbManager.getDefaultChipId();
         } finally {
@@ -150,7 +150,7 @@ public class UwbManagerTest {
             uiAutomation.adoptShellPermissionIdentity();
             if (mUwbManager.isUwbHwIdleTurnOffEnabled()) {
                 // If HW idle mode is turned on, reset vote for the UWB hardware.
-                requestUwbHwEnabledAndWaitForCompletion(false);
+                requestUwbHwEnabledAndWaitForCompletion(false, mUwbManager, false);
             }
             mDefaultChipId = mUwbManager.getDefaultChipId();
         } finally {
@@ -1490,7 +1490,7 @@ public class UwbManagerTest {
                 });
     }
 
-    private class AdapterStateCallback implements UwbManager.AdapterStateCallback {
+    private static class AdapterStateCallback implements UwbManager.AdapterStateCallback {
         private final CountDownLatch mCountDownLatch;
         private final Integer mWaitForState;
         public int state;
@@ -1993,21 +1993,30 @@ public class UwbManagerTest {
                         null));
     }
 
+    private UwbManager createUwbManagerWithAttrTag(String attributionTag) {
+        Context contextWithAttrTag = mContext.createContext(
+                new ContextParams.Builder()
+                        .setAttributionTag(attributionTag)
+                        .build()
+        );
+        return  contextWithAttrTag.getSystemService(UwbManager.class);
+    }
+
     // Should be invoked with shell permissions.
-    private void requestUwbHwEnabledAndWaitForCompletion(boolean enabled) throws Exception {
+    private static void requestUwbHwEnabledAndWaitForCompletion(boolean enabled,
+            UwbManager uwbManager, boolean expectAdapterEnable) throws Exception {
         CountDownLatch countDownLatch = new CountDownLatch(1);
-        int adapterState = enabled ? STATE_ENABLED_INACTIVE : STATE_ENABLED_HW_IDLE;
+        int adapterState = expectAdapterEnable ? STATE_ENABLED_INACTIVE : STATE_ENABLED_HW_IDLE;
         AdapterStateCallback adapterStateCallback =
                 new AdapterStateCallback(countDownLatch, adapterState);
         try {
-            mUwbManager.registerAdapterStateCallback(
+            uwbManager.registerAdapterStateCallback(
                     Executors.newSingleThreadExecutor(), adapterStateCallback);
-            mUwbManager.requestUwbHwEnabled(enabled);
+            uwbManager.requestUwbHwEnabled(enabled);
             assertThat(countDownLatch.await(2, TimeUnit.SECONDS)).isTrue();
-            assertThat(mUwbManager.isUwbHwEnabled()).isEqualTo(enabled);
             assertThat(adapterStateCallback.state).isEqualTo(adapterState);
         } finally {
-            mUwbManager.unregisterAdapterStateCallback(adapterStateCallback);
+            uwbManager.unregisterAdapterStateCallback(adapterStateCallback);
         }
     }
 
@@ -2020,12 +2029,38 @@ public class UwbManagerTest {
         try {
             // Needs UWB_PRIVILEGED permission which is held by shell.
             uiAutomation.adoptShellPermissionIdentity();
-            assertThat(mUwbManager.isUwbHwEnabled()).isTrue();
+            assertThat(mUwbManager.isUwbHwEnableRequested()).isEqualTo(true);
             assertThat(mUwbManager.getAdapterState()).isEqualTo(STATE_ENABLED_INACTIVE);
             // Toggle the HW state on & off.
-            requestUwbHwEnabledAndWaitForCompletion(false);
-            requestUwbHwEnabledAndWaitForCompletion(true);
+            requestUwbHwEnabledAndWaitForCompletion(false, mUwbManager, false);
+            requestUwbHwEnabledAndWaitForCompletion(true, mUwbManager, true);
         } finally {
+            uiAutomation.dropShellPermissionIdentity();
+        }
+    }
+
+    @Test
+    @CddTest(requirements = {"7.3.13/C-1-1,C-1-2,C-1-4"})
+    @RequiresFlagsEnabled("com.android.uwb.flags.hw_state")
+    public void testUwbHwStateToggleMultipleClients() throws Exception {
+        assumeTrue(mUwbManager.isUwbHwIdleTurnOffEnabled());
+        UiAutomation uiAutomation = getInstrumentation().getUiAutomation();
+        UwbManager uwbManagerWithAttrTag1 = createUwbManagerWithAttrTag("tag1");
+        UwbManager uwbManagerWithAttrTag2 = createUwbManagerWithAttrTag("tag2");
+        try {
+            // Needs UWB_PRIVILEGED permission which is held by shell.
+            uiAutomation.adoptShellPermissionIdentity();
+            // First remove the vote from the test setup
+            requestUwbHwEnabledAndWaitForCompletion(false, mUwbManager, false);
+
+            // Toggle the HW state on & off.
+            requestUwbHwEnabledAndWaitForCompletion(true, uwbManagerWithAttrTag1, true);
+            requestUwbHwEnabledAndWaitForCompletion(true, uwbManagerWithAttrTag2, true);
+            requestUwbHwEnabledAndWaitForCompletion(false, uwbManagerWithAttrTag1, true);
+            requestUwbHwEnabledAndWaitForCompletion(false, uwbManagerWithAttrTag2, false);
+        } finally {
+            // Reset back to vote as expected by the setup.
+            requestUwbHwEnabledAndWaitForCompletion(true, mUwbManager, true);
             uiAutomation.dropShellPermissionIdentity();
         }
     }

@@ -207,7 +207,7 @@ public class UwbServiceCore implements INativeUwbManager.DeviceNotification,
         return getAdapterState() != AdapterStateCallback.STATE_DISABLED;
     }
 
-    private boolean isUwbChipEnabled() {
+    private boolean isUwbEnabledInternal() {
         synchronized (UwbServiceCore.this) {
             return getInternalAdapterState() != AdapterStateCallback.STATE_DISABLED;
         }
@@ -758,10 +758,10 @@ public class UwbServiceCore implements INativeUwbManager.DeviceNotification,
     public synchronized void setEnabled(boolean enabled) {
         int task = enabled ? TASK_ENABLE : TASK_DISABLE;
 
-        if (enabled && isUwbChipEnabled()) {
-            Log.w(TAG, "Uwb chip is already enabled");
-        } else if (!enabled && !isUwbChipEnabled()) {
-            Log.w(TAG, "Uwb chip is already disabled");
+        if (enabled && isUwbEnabledInternal()) {
+            Log.w(TAG, "Uwb is already enabled");
+        } else if (!enabled && !isUwbEnabledInternal()) {
+            Log.w(TAG, "Uwb is already disabled");
         }
 
         mUwbTask.execute(task);
@@ -921,7 +921,7 @@ public class UwbServiceCore implements INativeUwbManager.DeviceNotification,
         }
 
         private void handleEnable() {
-            if (isUwbChipEnabled()) {
+            if (isUwbEnabledInternal()) {
                 Log.i(TAG, "UWB chip is already enabled, notify adapter state = "
                         + getAdapterState());
                 return;
@@ -944,7 +944,7 @@ public class UwbServiceCore implements INativeUwbManager.DeviceNotification,
                         // proxy for this being the second initialization attempt, since currently
                         // there is only one listener (UwbServiceImpl), which is removed after the
                         // first retry attempt.
-                        mUwbMetrics.incrementDeviceInitFailureCount(mListeners.isEmpty());
+                        mUwbMetrics.logUwbStateChangeEvent(true, false, mListeners.isEmpty());
                         if (mListeners.isEmpty()) {
                             takBugReportAfterDeviceError("UWB Bugreport: error enabling UWB");
                         }
@@ -959,7 +959,7 @@ public class UwbServiceCore implements INativeUwbManager.DeviceNotification,
 
                         Log.i(TAG, "Initialization success");
                         /* TODO : keep it until MW, FW fix b/196943897 */
-                        mUwbMetrics.incrementDeviceInitSuccessCount();
+                        mUwbMetrics.logUwbStateChangeEvent(true, true, false);
 
                         for (String chipId : mUwbInjector.getMultichipData().getChipIds()) {
                             Log.d(TAG, "enabling chip " + chipId);
@@ -996,7 +996,7 @@ public class UwbServiceCore implements INativeUwbManager.DeviceNotification,
         }
 
         private void handleDisable() {
-            if (!isUwbChipEnabled()) {
+            if (!isUwbEnabledInternal()) {
                 Log.i(TAG, "UWB chip is already disabled, notify adapter state = "
                         + getAdapterState());
                 return;
@@ -1013,8 +1013,10 @@ public class UwbServiceCore implements INativeUwbManager.DeviceNotification,
 
                 if (!mNativeUwbManager.doDeinitialize()) {
                     Log.w(TAG, "Error disabling UWB");
+                    mUwbMetrics.logUwbStateChangeEvent(false, false, false);
                 } else {
                     Log.i(TAG, "Deinitialization success");
+                    mUwbMetrics.logUwbStateChangeEvent(false, true, false);
                 }
                 /* UWBS_STATUS_OFF is not the valid state. so handle device state directly */
                 for (String chipId : mUwbInjector.getMultichipData().getChipIds()) {

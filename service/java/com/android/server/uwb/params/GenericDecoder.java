@@ -22,6 +22,8 @@ import android.util.Log;
 
 import com.android.server.uwb.UwbInjector;
 
+import com.google.uwb.support.aliro.AliroParams;
+import com.google.uwb.support.aliro.AliroSpecificationParams;
 import com.google.uwb.support.base.Params;
 import com.google.uwb.support.base.ProtocolVersion;
 import com.google.uwb.support.ccc.CccParams;
@@ -67,6 +69,14 @@ public class GenericDecoder extends TlvDecoder {
             builder.setCccSpecificationParams(cccSpecificationParams);
         } catch (IllegalArgumentException e) {
             Log.e(TAG, "Failed to decode CCC capabilities", e);
+        }
+        try {
+            AliroSpecificationParams aliroSpecificationParams =
+                    TlvDecoder.getDecoder(AliroParams.PROTOCOL_NAME, mUwbInjector).getParams(
+                            tlvs, AliroSpecificationParams.class, protocolVersion);
+            builder.setAliroSpecificationParams(aliroSpecificationParams);
+        } catch (IllegalArgumentException e) {
+            Log.e(TAG, "Failed to decode ALIRO capabilities", e);
         }
         try {
             RadarSpecificationParams radarSpecificationParams =

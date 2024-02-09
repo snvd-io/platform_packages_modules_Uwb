@@ -82,6 +82,12 @@ import com.android.server.uwb.util.DataTypeConversionUtil;
 import com.android.server.uwb.util.LruList;
 import com.android.server.uwb.util.UwbUtil;
 
+import com.google.uwb.support.aliro.AliroOpenRangingParams;
+import com.google.uwb.support.aliro.AliroParams;
+import com.google.uwb.support.aliro.AliroRangingStartedParams;
+import com.google.uwb.support.aliro.AliroRangingStoppedParams;
+import com.google.uwb.support.aliro.AliroSpecificationParams;
+import com.google.uwb.support.aliro.AliroStartRangingParams;
 import com.google.uwb.support.base.Params;
 import com.google.uwb.support.ccc.CccOpenRangingParams;
 import com.google.uwb.support.ccc.CccParams;
@@ -570,7 +576,13 @@ public class UwbSessionManager implements INativeUwbManager.SessionNotification,
 
         boolean maxSessionsExceeded = false;
         // TODO: getCccSessionCount and getFiraSessionCount should be chip specific
-        if (protocolName.equals(CccParams.PROTOCOL_NAME)
+        if (protocolName.equals(AliroParams.PROTOCOL_NAME)
+                && getAliroSessionCount() >= getMaxAliroSessionsNumber(chipId)) {
+            Log.i(TAG, "Max ALIRO Sessions Exceeded");
+            // All ALIRO sessions have the same priority so there's no point in trying to make space
+            // if max sessions are already reached.
+            maxSessionsExceeded = true;
+        } else if (protocolName.equals(CccParams.PROTOCOL_NAME)
                 && getCccSessionCount() >= getMaxCccSessionsNumber(chipId)) {
             Log.i(TAG, "Max CCC Sessions Exceeded");
             // All CCC sessions have the same priority so there's no point in trying to make space
@@ -682,7 +694,16 @@ public class UwbSessionManager implements INativeUwbManager.SessionNotification,
 
         int currentSessionState = getCurrentSessionState(sessionId);
         if (currentSessionState == UwbUciConstants.UWB_SESSION_STATE_IDLE) {
-            if (uwbSession.getProtocolName().equals(CccParams.PROTOCOL_NAME)
+            if (uwbSession.getProtocolName().equals(AliroParams.PROTOCOL_NAME)
+                    && params instanceof AliroStartRangingParams) {
+                AliroStartRangingParams aliroStartRangingParams = (AliroStartRangingParams) params;
+                Log.i(TAG, "startRanging() - update RAN multiplier: "
+                        + aliroStartRangingParams.getRanMultiplier()
+                        + ", stsIndex: " + aliroStartRangingParams.getStsIndex());
+                // Need to update the RAN multiplier from the AliroStartRangingParams for an
+                // ALIRO session.
+                uwbSession.updateAliroParamsOnStart(aliroStartRangingParams);
+            } else if (uwbSession.getProtocolName().equals(CccParams.PROTOCOL_NAME)
                     && params instanceof CccStartRangingParams) {
                 CccStartRangingParams cccStartRangingParams = (CccStartRangingParams) params;
                 Log.i(TAG, "startRanging() - update RAN multiplier: "
@@ -690,8 +711,7 @@ public class UwbSessionManager implements INativeUwbManager.SessionNotification,
                         + ", stsIndex: " + cccStartRangingParams.getStsIndex());
                 // Need to update the RAN multiplier from the CccStartRangingParams for CCC session.
                 uwbSession.updateCccParamsOnStart(cccStartRangingParams);
-            }
-            if (uwbSession.getProtocolName().equals(FiraParams.PROTOCOL_NAME)) {
+            } else if (uwbSession.getProtocolName().equals(FiraParams.PROTOCOL_NAME)) {
                 // Need to update session priority if it changed.
                 uwbSession.updateFiraParamsOnStartIfChanged();
             }
@@ -923,17 +943,36 @@ public class UwbSessionManager implements INativeUwbManager.SessionNotification,
         return mSessionTable.size();
     }
 
+    public long getAliroSessionCount() {
+        return getProtocolSessionCount(AliroParams.PROTOCOL_NAME);
+    }
+
     public long getCccSessionCount() {
-        return mSessionTable.values().stream().filter(
-                s -> s.mProtocolName.equals(CccParams.PROTOCOL_NAME)).count();
+        return getProtocolSessionCount(CccParams.PROTOCOL_NAME);
     }
 
     public long getFiraSessionCount() {
-        return mSessionTable.values().stream().filter(
-                s -> s.mProtocolName.equals(FiraParams.PROTOCOL_NAME)).count();
+        return getProtocolSessionCount(FiraParams.PROTOCOL_NAME);
     }
 
-    /** Returns max number of CCC sessions possible on given chip  */
+    private long getProtocolSessionCount(String protocolName) {
+        return mSessionTable.values().stream().filter(
+                s -> s.mProtocolName.equals(protocolName)).count();
+    }
+
+    /** Returns max number of ALIRO sessions possible on given chip. */
+    public long getMaxAliroSessionsNumber(String chipId) {
+        GenericSpecificationParams params =
+                mUwbInjector.getUwbServiceCore().getCachedSpecificationParams(chipId);
+        if (params != null && params.getAliroSpecificationParams() != null) {
+            return params.getAliroSpecificationParams().getMaxRangingSessionNumber();
+        } else {
+            // Specification params are empty, return the default ALIRO max sessions value
+            return AliroSpecificationParams.DEFAULT_MAX_RANGING_SESSIONS_NUMBER;
+        }
+    }
+
+    /** Returns max number of CCC sessions possible on given chip. */
     public long getMaxCccSessionsNumber(String chipId) {
         GenericSpecificationParams params =
                 mUwbInjector.getUwbServiceCore().getCachedSpecificationParams(chipId);
@@ -945,7 +984,7 @@ public class UwbSessionManager implements INativeUwbManager.SessionNotification,
         }
     }
 
-    /** Returns max number of Fira sessions possible on given chip  */
+    /** Returns max number of Fira sessions possible on given chip. */
     public long getMaxFiraSessionsNumber(String chipId) {
         GenericSpecificationParams params =
                 mUwbInjector.getUwbServiceCore().getCachedSpecificationParams(chipId);
@@ -1487,6 +1526,24 @@ public class UwbSessionManager implements INativeUwbManager.SessionNotification,
                                 // TODO: Ensure |rangingStartedParams| is valid for FIRA sessions
                                 // as well.
                                 Params rangingStartedParams = uwbSession.getParams();
+
+                                // For ALIRO sessions, retrieve the app configs
+                                if (uwbSession.getProtocolName().equals(
+                                        AliroParams.PROTOCOL_NAME)) {
+                                    Pair<Integer, AliroRangingStartedParams> statusAndParams  =
+                                            mConfigurationManager.getAppConfigurations(
+                                                    uwbSession.getSessionId(),
+                                                    AliroParams.PROTOCOL_NAME,
+                                                    new byte[0],
+                                                    AliroRangingStartedParams.class,
+                                                    uwbSession.getChipId(),
+                                                    AliroParams.PROTOCOL_VERSION_1_0);
+                                    if (statusAndParams.first != UwbUciConstants.STATUS_CODE_OK) {
+                                        Log.e(TAG, "Failed to get ALIRO ranging started params");
+                                    }
+                                    rangingStartedParams = statusAndParams.second;
+                                }
+
                                 // For CCC sessions, retrieve the app configs
                                 if (uwbSession.getProtocolName().equals(CccParams.PROTOCOL_NAME)) {
                                     Pair<Integer, CccRangingStartedParams> statusAndParams  =
@@ -1502,6 +1559,7 @@ public class UwbSessionManager implements INativeUwbManager.SessionNotification,
                                     }
                                     rangingStartedParams = statusAndParams.second;
                                 }
+
                                 mSessionNotificationManager.onRangingStarted(
                                         uwbSession, rangingStartedParams);
                                 if (uwbSession.hasNonPrivilegedApp()
@@ -1598,6 +1656,25 @@ public class UwbSessionManager implements INativeUwbManager.SessionNotification,
         private void handleStopRangingParams(UwbSession uwbSession,
                 boolean triggeredBySystemPolicy) {
             PersistableBundle rangingStoppedParamsBundle = new PersistableBundle();
+
+            // For ALIRO sessions, retrieve the app configs
+            if (uwbSession.getProtocolName().equals(AliroParams.PROTOCOL_NAME)
+                    && mUwbInjector.getDeviceConfigFacade()
+                    .isCccRangingStoppedParamsSendEnabled()) { // Use CCC Flag for ALIRO.
+                Pair<Integer, AliroRangingStoppedParams> statusAndParams  =
+                        mConfigurationManager.getAppConfigurations(
+                                uwbSession.getSessionId(),
+                                AliroParams.PROTOCOL_NAME,
+                                new byte[0],
+                                AliroRangingStoppedParams.class,
+                                uwbSession.getChipId(),
+                                AliroParams.PROTOCOL_VERSION_1_0);
+                if (statusAndParams.first != UwbUciConstants.STATUS_CODE_OK) {
+                    Log.e(TAG, "Failed to get ALIRO ranging stopped params");
+                }
+                rangingStoppedParamsBundle = statusAndParams.second.toBundle();
+            }
+
             // For CCC sessions, retrieve the app configs
             if (uwbSession.getProtocolName().equals(CccParams.PROTOCOL_NAME)
                     && mUwbInjector.getDeviceConfigFacade()
@@ -1615,6 +1692,7 @@ public class UwbSessionManager implements INativeUwbManager.SessionNotification,
                 }
                 rangingStoppedParamsBundle = statusAndParams.second.toBundle();
             }
+
             int apiReasonCode = triggeredBySystemPolicy
                     ? RangingChangeReason.SYSTEM_POLICY
                     : RangingChangeReason.LOCAL_API;
@@ -1990,6 +2068,8 @@ public class UwbSessionManager implements INativeUwbManager.SessionNotification,
         public static final String NON_PRIVILEGED_BG_APP_TIMER_TAG =
                 "UwbSessionNonPrivilegedBgAppError";
         @VisibleForTesting
+        static final int ALIRO_SESSION_PRIORITY = 80;
+        @VisibleForTesting
         static final int CCC_SESSION_PRIORITY = 80;
         @VisibleForTesting
         static final int SYSTEM_APP_SESSION_PRIORITY = 70;
@@ -2134,6 +2214,9 @@ public class UwbSessionManager implements INativeUwbManager.SessionNotification,
          *  4. Other apps/services running in Background
          */
         public int calculateSessionPriority() {
+            if (mProtocolName.equals(AliroParams.PROTOCOL_NAME)) {
+                return ALIRO_SESSION_PRIORITY;
+            }
             if (mProtocolName.equals(CccParams.PROTOCOL_NAME)) {
                 return CCC_SESSION_PRIORITY;
             }
@@ -2363,6 +2446,24 @@ public class UwbSessionManager implements INativeUwbManager.SessionNotification,
         public int getDataRepetitionCount() {
             return mDataRepetitionCount;
         }
+
+        public void updateAliroParamsOnStart(AliroStartRangingParams rangingStartParams) {
+            setNeedsQueryUwbsTimestamp(rangingStartParams);
+
+            // Need to update the RAN multiplier and initiation time
+            // from the AliroStartRangingParams for CCC session.
+            AliroOpenRangingParams newParams =
+                    new AliroOpenRangingParams.Builder((AliroOpenRangingParams) mParams)
+                            .setRanMultiplier(rangingStartParams.getRanMultiplier())
+                            .setInitiationTimeMs(rangingStartParams.getInitiationTimeMs())
+                            .setAbsoluteInitiationTimeUs(rangingStartParams
+                                    .getAbsoluteInitiationTimeUs())
+                            .setStsIndex(rangingStartParams.getStsIndex())
+                            .build();
+            this.mParams = newParams;
+            this.mNeedsAppConfigUpdate = true;
+        }
+
         public void updateCccParamsOnStart(CccStartRangingParams rangingStartParams) {
             setNeedsQueryUwbsTimestamp(rangingStartParams);
 
@@ -2400,8 +2501,7 @@ public class UwbSessionManager implements INativeUwbManager.SessionNotification,
          * Sets {@code mNeedsQueryUwbsTimestamp} to {@code true}, if the UWBS Timestamp needs to be
          * fetched from the UWBS controller (for computing an absolute UWB initiation time).
          */
-        public void setNeedsQueryUwbsTimestamp(
-                @Nullable CccStartRangingParams cccStartRangingParams) {
+        public void setNeedsQueryUwbsTimestamp(@Nullable Params startRangingParams) {
             // When the UWBS supports Fira 2.0+, the application has configured a relative UWB
             // initation time, but not configured an absolute UWB initiation time, we must fetch
             // the UWBS timestamp (to compute the absolute UWB initiation time).
@@ -2413,11 +2513,14 @@ public class UwbSessionManager implements INativeUwbManager.SessionNotification,
                         this.mNeedsQueryUwbsTimestamp = true;
                     }
                 } else if (mParams instanceof CccOpenRangingParams
-                               && mUwbInjector.getDeviceConfigFacade()
-                                       .isCccAbsoluteUwbInitiationTimeEnabled()) {
+                        && mUwbInjector.getDeviceConfigFacade()
+                        .isCccAbsoluteUwbInitiationTimeEnabled()) {
                     // When CccStartRangingParams is present; we check only for it's fields,
                     // since its values overrides the earlier CccOpenRangingParams.
-                    if (cccStartRangingParams != null) {
+                    if (startRangingParams != null
+                                && startRangingParams instanceof CccStartRangingParams) {
+                        CccStartRangingParams cccStartRangingParams =
+                                (CccStartRangingParams) startRangingParams;
                         if (cccStartRangingParams.getInitiationTimeMs() != 0
                                 && cccStartRangingParams.getAbsoluteInitiationTimeUs() == 0) {
                             this.mNeedsQueryUwbsTimestamp = true;
@@ -2426,6 +2529,27 @@ public class UwbSessionManager implements INativeUwbManager.SessionNotification,
                         CccOpenRangingParams cccOpenRangingParams = (CccOpenRangingParams) mParams;
                         if (cccOpenRangingParams.getInitiationTimeMs() != 0
                                 && cccOpenRangingParams.getAbsoluteInitiationTimeUs() == 0) {
+                            this.mNeedsQueryUwbsTimestamp = true;
+                        }
+                    }
+                } else if (mParams instanceof AliroOpenRangingParams
+                        && mUwbInjector.getDeviceConfigFacade()
+                        .isCccAbsoluteUwbInitiationTimeEnabled()) { // Re-use CCC flag for ALIRO
+                    // When AliroStartRangingParams is present; we check only for it's fields,
+                    // since its values overrides the earlier AliroOpenRangingParams.
+                    if (startRangingParams != null
+                                && startRangingParams instanceof AliroStartRangingParams) {
+                        AliroStartRangingParams aliroStartRangingParams =
+                                (AliroStartRangingParams) startRangingParams;
+                        if (aliroStartRangingParams.getInitiationTimeMs() != 0
+                                && aliroStartRangingParams.getAbsoluteInitiationTimeUs() == 0) {
+                            this.mNeedsQueryUwbsTimestamp = true;
+                        }
+                    } else {
+                        AliroOpenRangingParams aliroOpenRangingParams =
+                                (AliroOpenRangingParams) mParams;
+                        if (aliroOpenRangingParams.getInitiationTimeMs() != 0
+                                && aliroOpenRangingParams.getAbsoluteInitiationTimeUs() == 0) {
                             this.mNeedsQueryUwbsTimestamp = true;
                         }
                     }
@@ -2485,6 +2609,13 @@ public class UwbSessionManager implements INativeUwbManager.SessionNotification,
                             .setAbsoluteInitiationTimeUs(uwbsTimestamp
                                     + (cccOpenRangingParams.getInitiationTimeMs() * 1000))
                             .build();
+                } else if (mParams instanceof AliroOpenRangingParams) {
+                    AliroOpenRangingParams aliroOpenRangingParams =
+                            (AliroOpenRangingParams) mParams;
+                    this.mParams = ((AliroOpenRangingParams) mParams).toBuilder()
+                            .setAbsoluteInitiationTimeUs(uwbsTimestamp
+                                    + (aliroOpenRangingParams.getInitiationTimeMs() * 1000))
+                            .build();
                 }
                 this.mNeedsAppConfigUpdate = true;
             }
@@ -2504,6 +2635,10 @@ public class UwbSessionManager implements INativeUwbManager.SessionNotification,
                             .build();
                 } else if (mParams instanceof CccOpenRangingParams) {
                     this.mParams = ((CccOpenRangingParams) mParams).toBuilder()
+                            .setAbsoluteInitiationTimeUs(0)
+                            .build();
+                } else if (mParams instanceof AliroOpenRangingParams) {
+                    this.mParams = ((AliroOpenRangingParams) mParams).toBuilder()
                             .setAbsoluteInitiationTimeUs(0)
                             .build();
                 }
@@ -2618,6 +2753,8 @@ public class UwbSessionManager implements INativeUwbManager.SessionNotification,
                 return UwbStatsLog.UWB_SESSION_INITIATED__PROFILE__FIRA;
             } else if (protocolName.equals(CccParams.PROTOCOL_NAME)) {
                 return UwbStatsLog.UWB_SESSION_INITIATED__PROFILE__CCC;
+            } else if (protocolName.equals(AliroParams.PROTOCOL_NAME)) {
+                return UwbStatsLog.UWB_SESSION_INITIATED__PROFILE__ALIRO;
             } else {
                 return UwbStatsLog.UWB_SESSION_INITIATED__PROFILE__CUSTOMIZED;
             }
@@ -2790,9 +2927,10 @@ public class UwbSessionManager implements INativeUwbManager.SessionNotification,
                 if (status == UwbUciConstants.STATUS_CODE_OK) {
                     removeSession(this);
                     Log.i(TAG,
-                            "binderDied : Fira/CCC Session counts currently are "
+                            "binderDied : Fira/CCC/ALIRO Session counts currently are "
                                     + getFiraSessionCount()
-                                    + "/" + getCccSessionCount());
+                                    + "/" + getCccSessionCount()
+                                    + "/" + getAliroSessionCount());
                 } else {
                     Log.e(TAG,
                             "binderDied : sessionDeinit Failure because of NativeSessionDeinit "

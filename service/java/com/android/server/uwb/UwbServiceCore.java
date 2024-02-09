@@ -58,6 +58,10 @@ import com.android.server.uwb.info.UwbPowerStats;
 import com.android.server.uwb.jni.INativeUwbManager;
 import com.android.server.uwb.jni.NativeUwbManager;
 
+import com.google.uwb.support.aliro.AliroOpenRangingParams;
+import com.google.uwb.support.aliro.AliroParams;
+import com.google.uwb.support.aliro.AliroRangingReconfiguredParams;
+import com.google.uwb.support.aliro.AliroStartRangingParams;
 import com.google.uwb.support.base.Params;
 import com.google.uwb.support.ccc.CccOpenRangingParams;
 import com.google.uwb.support.ccc.CccParams;
@@ -544,6 +548,14 @@ public class UwbServiceCore implements INativeUwbManager.DeviceNotification,
             mSessionManager.initSession(attributionSource, sessionHandle, sessionId,
                     (byte) sessionType, cccOpenRangingParams.getProtocolName(),
                     cccOpenRangingParams, rangingCallbacks, chipId);
+        } else if (AliroParams.isCorrectProtocol(params)) {
+            AliroOpenRangingParams aliroOpenRangingParams =
+                    AliroOpenRangingParams.fromBundle(params);
+            sessionId = aliroOpenRangingParams.getSessionId();
+            sessionType = aliroOpenRangingParams.getSessionType();
+            mSessionManager.initSession(attributionSource, sessionHandle, sessionId,
+                    (byte) sessionType, aliroOpenRangingParams.getProtocolName(),
+                    aliroOpenRangingParams, rangingCallbacks, chipId);
         } else if (RadarParams.isCorrectProtocol(params)) {
             RadarOpenSessionParams radarOpenSessionParams =
                     RadarOpenSessionParams.fromBundle(params);
@@ -566,9 +578,11 @@ public class UwbServiceCore implements INativeUwbManager.DeviceNotification,
         if (!isUwbEnabled()) {
             throw new IllegalStateException("Uwb is not enabled");
         }
-        Params  startRangingParams = null;
+        Params startRangingParams = null;
         if (CccParams.isCorrectProtocol(params)) {
             startRangingParams = CccStartRangingParams.fromBundle(params);
+        } else if (AliroParams.isCorrectProtocol(params)) {
+            startRangingParams = AliroStartRangingParams.fromBundle(params);
         }
 
         if (mUwbInjector.getProfileManager().hasSession(sessionHandle)) {
@@ -582,12 +596,15 @@ public class UwbServiceCore implements INativeUwbManager.DeviceNotification,
         if (!isUwbEnabled()) {
             throw new IllegalStateException("Uwb is not enabled");
         }
-        Params  reconfigureRangingParams = null;
+        Params reconfigureRangingParams = null;
         if (FiraParams.isCorrectProtocol(params)) {
             reconfigureRangingParams = FiraRangingReconfigureParams.fromBundle(params);
         } else if (CccParams.isCorrectProtocol(params)) {
             reconfigureRangingParams = CccRangingReconfiguredParams.fromBundle(params);
+        } else if (AliroParams.isCorrectProtocol(params)) {
+            reconfigureRangingParams = AliroRangingReconfiguredParams.fromBundle(params);
         }
+
         mSessionManager.reconfigure(sessionHandle, reconfigureRangingParams);
     }
 

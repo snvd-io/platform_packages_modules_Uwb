@@ -300,6 +300,10 @@ interface IUwbAdapter {
    */
   int getAdapterState();
 
+  boolean isHwIdleTurnOffEnabled();
+  void requestHwEnabled(boolean enabled, in AttributionSource attributionSource);
+  boolean isHwEnableRequested(in AttributionSource attributionSource);
+
   /**
    * Returns a list of UWB chip infos in a {@link PersistableBundle}.
    *

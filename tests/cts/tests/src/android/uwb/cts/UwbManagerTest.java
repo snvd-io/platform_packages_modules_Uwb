@@ -132,7 +132,7 @@ public class UwbManagerTest {
             if (!mUwbManager.isUwbEnabled()) {
                 setUwbEnabledAndWaitForCompletion(true);
             }
-            if (mUwbManager.isUwbHwIdleTurnOffEnabled()) {
+            if (com.android.uwb.flags.Flags.hwState() && mUwbManager.isUwbHwIdleTurnOffEnabled()) {
                 // If HW idle mode is turned on, vote for the UWB hardware for tests to pass.
                 requestUwbHwEnabledAndWaitForCompletion(true, mUwbManager, true);
             }
@@ -148,7 +148,7 @@ public class UwbManagerTest {
         try {
             // Needs UWB_PRIVILEGED permission which is held by shell.
             uiAutomation.adoptShellPermissionIdentity();
-            if (mUwbManager.isUwbHwIdleTurnOffEnabled()) {
+            if (com.android.uwb.flags.Flags.hwState() && mUwbManager.isUwbHwIdleTurnOffEnabled()) {
                 // If HW idle mode is turned on, reset vote for the UWB hardware.
                 requestUwbHwEnabledAndWaitForCompletion(false, mUwbManager, false);
             }

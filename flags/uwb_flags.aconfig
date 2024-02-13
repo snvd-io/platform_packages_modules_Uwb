@@ -49,3 +49,10 @@ flag {
     description: "Implement CR-423: Remove Interval-based scheduling for Fira 2.0+ devices"
     bug: "285984664"
 }
+
+flag {
+    name: "hw_state"
+    namespace: "uwb"
+    description: "This flag enables the new hardware state APIs"
+    bug: "322372275"
+}

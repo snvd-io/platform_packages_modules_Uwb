@@ -37,10 +37,10 @@ use uwb_core::uci::{
     SessionNotification, SessionRangeData,
 };
 use uwb_uci_packets::{
-    radar_bytes_per_sample_value, ControleeStatus, ExtendedAddressDlTdoaRangingMeasurement,
-    ExtendedAddressOwrAoaRangingMeasurement, ExtendedAddressTwoWayRangingMeasurement,
-    MacAddressIndicator, RangingMeasurementType, SessionState,
-    ShortAddressDlTdoaRangingMeasurement, ShortAddressOwrAoaRangingMeasurement,
+    radar_bytes_per_sample_value, ControleeStatusV1, ControleeStatusV2,
+    ExtendedAddressDlTdoaRangingMeasurement, ExtendedAddressOwrAoaRangingMeasurement,
+    ExtendedAddressTwoWayRangingMeasurement, MacAddressIndicator, RangingMeasurementType,
+    SessionState, ShortAddressDlTdoaRangingMeasurement, ShortAddressOwrAoaRangingMeasurement,
     ShortAddressTwoWayRangingMeasurement, StatusCode,
 };
 
@@ -381,18 +381,32 @@ impl NotificationManagerAndroid {
         &mut self,
         session_id: u32,
         remaining_multicast_list_size: usize,
-        status_list: Vec<ControleeStatus>,
+        status_list_v1: Vec<ControleeStatusV1>,
+        status_list_v2: Vec<ControleeStatusV2>,
     ) -> Result<JObject, JNIError> {
         let remaining_multicast_list_size: i32 =
             remaining_multicast_list_size.try_into().map_err(|_| JNIError::InvalidCtorReturn)?;
-        let count: i32 = status_list.len().try_into().map_err(|_| JNIError::InvalidCtorReturn)?;
-        let subsession_id_jlongarray = self.env.new_long_array(count)?;
-        let status_jintarray = self.env.new_int_array(count)?;
-        let (mac_address_vec, (subsession_id_vec, status_vec)): (Vec<[u8; 2]>, (Vec<_>, Vec<_>)) =
-            status_list
+
+        let mac_address_vec: Vec<[u8; 2]>;
+        let subsession_id_vec: Vec<_>;
+        let status_vec: Vec<_>;
+        let count: i32;
+        if !status_list_v1.is_empty() {
+            count = status_list_v1.len().try_into().map_err(|_| JNIError::InvalidCtorReturn)?;
+            (mac_address_vec, (subsession_id_vec, status_vec)) = status_list_v1
                 .into_iter()
                 .map(|cs| (cs.mac_address, (cs.subsession_id as i64, i32::from(cs.status))))
                 .unzip();
+        } else {
+            count = status_list_v2.len().try_into().map_err(|_| JNIError::InvalidCtorReturn)?;
+            (mac_address_vec, (subsession_id_vec, status_vec)) = status_list_v2
+                .into_iter()
+                .map(|cs| (cs.mac_address, (0_i64, i32::from(cs.status))))
+                .unzip();
+        }
+
+        let subsession_id_jlongarray = self.env.new_long_array(count)?;
+        let status_jintarray = self.env.new_int_array(count)?;
 
         let mac_address_vec_i8 =
             mac_address_vec.iter().flat_map(|&[a, b]| vec![a as i8, b as i8]).collect::<Vec<i8>>();
@@ -1042,11 +1056,13 @@ impl NotificationManager for NotificationManagerAndroid {
                 SessionNotification::UpdateControllerMulticastList {
                     session_token,
                     remaining_multicast_list_size,
-                    status_list,
+                    status_list_v1,
+                    status_list_v2,
                 } => self.on_session_update_multicast_notification(
                     session_token,
                     remaining_multicast_list_size,
-                    status_list,
+                    status_list_v1,
+                    status_list_v2,
                 ),
                 // TODO(b/246678053): Match here on range_data.ranging_measurement_type instead.
                 SessionNotification::SessionInfo(range_data) => {

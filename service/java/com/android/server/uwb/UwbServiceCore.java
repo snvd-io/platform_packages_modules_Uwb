@@ -784,6 +784,16 @@ public class UwbServiceCore implements INativeUwbManager.DeviceNotification,
         mUwbTask.execute(task);
     }
 
+    public synchronized void requestHwEnabled(
+            boolean enabled, AttributionSource attributionSource) {
+    }
+
+    public boolean isHwEnableRequested(AttributionSource attributionSource) {
+        synchronized (UwbServiceCore.this) {
+            return true;
+        }
+    }
+
     private void sendVendorUciResponse(int gid, int oid, byte[] payload) {
         Log.i(TAG, "onVendorUciResponseReceived");
         if (mCallBack != null) {

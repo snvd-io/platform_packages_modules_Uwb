@@ -17,6 +17,7 @@
 package android.uwb;
 
 import android.content.AttributionSource;
+import android.os.IBinder;
 import android.os.PersistableBundle;
 import android.uwb.IUwbAdapterStateCallbacks;
 import android.uwb.IUwbAdfProvisionStateCallbacks;
@@ -299,6 +300,10 @@ interface IUwbAdapter {
    * @return value representing enabled/disabled UWB state.
    */
   int getAdapterState();
+
+  boolean isHwIdleTurnOffEnabled();
+  void requestHwEnabled(boolean enabled, in AttributionSource attributionSource, IBinder binder);
+  boolean isHwEnableRequested(in AttributionSource attributionSource);
 
   /**
    * Returns a list of UWB chip infos in a {@link PersistableBundle}.

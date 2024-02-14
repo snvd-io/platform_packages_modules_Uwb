@@ -39,6 +39,7 @@ android_test {
         "com.uwb.support.multichip",
         "com.uwb.support.oemextension",
         "com.uwb.support.dltdoa",
+        "uwb_flags_lib",
     ],
     srcs: ["src/**/*.java"],
     platform_apis: true,

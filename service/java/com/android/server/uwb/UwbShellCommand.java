@@ -155,6 +155,8 @@ public class UwbShellCommand extends BasicShellCommandHandler {
             "get-log-mode",
             "enable-uwb",
             "disable-uwb",
+            "enable-uwb-hw",
+            "disable-uwb-hw",
             "simulate-app-state-change",
             "start-fira-ranging-session",
             "start-ccc-ranging-session",
@@ -1255,6 +1257,22 @@ public class UwbShellCommand extends BasicShellCommandHandler {
                 case "disable-uwb":
                     mUwbService.setEnabled(false);
                     return 0;
+                case "enable-uwb-hw": {
+                    AttributionSource attributionSource = new AttributionSource.Builder(
+                            Process.SHELL_UID)
+                            .setPackageName(SHELL_PACKAGE_NAME)
+                            .build();
+                    mUwbService.requestHwEnabled(true, attributionSource, new Binder());
+                    return 0;
+                }
+                case "disable-uwb-hw": {
+                    AttributionSource attributionSource = new AttributionSource.Builder(
+                            Process.SHELL_UID)
+                            .setPackageName(SHELL_PACKAGE_NAME)
+                            .build();
+                    mUwbService.requestHwEnabled(false, attributionSource, new Binder());
+                    return 0;
+                }
                 case "start-dl-tdoa-ranging-session":
                     startDlTDoaRangingSession(pw);
                     return 0;
@@ -1396,9 +1414,18 @@ public class UwbShellCommand extends BasicShellCommandHandler {
     }
 
     private void printStatus(PrintWriter pw) throws RemoteException {
-        boolean uwbEnabled =
-                mUwbService.getAdapterState() != UwbManager.AdapterStateCallback.STATE_DISABLED;
-        pw.println("Uwb is " + (uwbEnabled ? "enabled" : "disabled"));
+        int adapterState = mUwbService.getAdapterState();
+        boolean uwbEnabled = adapterState != UwbManager.AdapterStateCallback.STATE_DISABLED;
+        boolean uwbHwIdle = adapterState == UwbManager.AdapterStateCallback.STATE_ENABLED_HW_IDLE;
+        String status;
+        if (uwbHwIdle) {
+            status = "enabled by user, but no clients have voted to enable hw";
+        } else if (uwbEnabled) {
+            status = "enabled";
+        } else {
+            status = "disabled";
+        }
+        pw.println("Uwb is " + status);
     }
 
     private void onHelpNonPrivileged(PrintWriter pw) {
@@ -1412,6 +1439,10 @@ public class UwbShellCommand extends BasicShellCommandHandler {
         pw.println("    Toggle UWB on");
         pw.println("  disable-uwb");
         pw.println("    Toggle UWB off");
+        pw.println("  enable-uwb-hw");
+        pw.println("    If 'hw_idle_turn_off_enabled' feature is enabled, vote for UWB on");
+        pw.println("  disable-uwb-hw");
+        pw.println("    If 'hw_idle_turn_off_enabled' feature is enabled, vote for UWB off");
         pw.println("  start-fira-ranging-session"
                 + " [-b](blocking call)"
                 + " [-i <sessionId>](session-id)"

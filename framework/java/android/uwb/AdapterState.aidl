@@ -35,4 +35,5 @@ enum AdapterState {
    * The state when UWB is enabled and has active sessions.
    */
   STATE_ENABLED_ACTIVE,
+  STATE_ENABLED_HW_IDLE,
 }

@@ -144,6 +144,7 @@ public class UwbManagerTest {
 
     @After
     public void teardown() throws Exception {
+        if (!UwbTestUtils.isUwbSupported(mContext)) return;
         UiAutomation uiAutomation = getInstrumentation().getUiAutomation();
         try {
             // Needs UWB_PRIVILEGED permission which is held by shell.

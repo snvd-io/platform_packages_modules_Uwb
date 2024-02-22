@@ -1262,7 +1262,7 @@ public class UwbShellCommand extends BasicShellCommandHandler {
                             Process.SHELL_UID)
                             .setPackageName(SHELL_PACKAGE_NAME)
                             .build();
-                    mUwbService.requestHwEnabled(true, attributionSource);
+                    mUwbService.requestHwEnabled(true, attributionSource, new Binder());
                     return 0;
                 }
                 case "disable-uwb-hw": {
@@ -1270,7 +1270,7 @@ public class UwbShellCommand extends BasicShellCommandHandler {
                             Process.SHELL_UID)
                             .setPackageName(SHELL_PACKAGE_NAME)
                             .build();
-                    mUwbService.requestHwEnabled(false, attributionSource);
+                    mUwbService.requestHwEnabled(false, attributionSource, new Binder());
                     return 0;
                 }
                 case "start-dl-tdoa-ranging-session":

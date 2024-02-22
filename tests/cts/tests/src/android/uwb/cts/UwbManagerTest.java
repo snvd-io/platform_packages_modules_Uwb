@@ -20,6 +20,7 @@ import static android.Manifest.permission.UWB_PRIVILEGED;
 import static android.Manifest.permission.UWB_RANGING;
 import static android.uwb.UwbManager.AdapterStateCallback.STATE_DISABLED;
 import static android.uwb.UwbManager.AdapterStateCallback.STATE_ENABLED_ACTIVE;
+import static android.uwb.UwbManager.AdapterStateCallback.STATE_ENABLED_HW_IDLE;
 import static android.uwb.UwbManager.AdapterStateCallback.STATE_ENABLED_INACTIVE;
 import static android.uwb.UwbManager.MESSAGE_TYPE_COMMAND;
 
@@ -48,6 +49,9 @@ import android.os.Process;
 import android.os.UserHandle;
 import android.permission.PermissionManager;
 import android.platform.test.annotations.AppModeFull;
+import android.platform.test.annotations.RequiresFlagsEnabled;
+import android.platform.test.flag.junit.CheckFlagsRule;
+import android.platform.test.flag.junit.DeviceFlagsValueProvider;
 import android.util.Log;
 import android.uwb.RangingMeasurement;
 import android.uwb.RangingReport;
@@ -61,7 +65,6 @@ import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
 
 import com.android.compatibility.common.util.CddTest;
-import com.android.compatibility.common.util.ShellIdentityUtils;
 import com.android.modules.utils.build.SdkLevel;
 
 import com.google.uwb.support.dltdoa.DlTDoAMeasurement;
@@ -80,9 +83,11 @@ import com.google.uwb.support.oemextension.RangingReportMetadata;
 import com.google.uwb.support.oemextension.SessionConfigParams;
 import com.google.uwb.support.oemextension.SessionStatus;
 
+import org.junit.After;
 import org.junit.Assume;
 import org.junit.Before;
 import org.junit.Ignore;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -109,6 +114,9 @@ public class UwbManagerTest {
     public static final int UWB_SESSION_STATE_IDLE = 0x03;
     public static final byte DEVICE_STATE_ACTIVE = 0x02;
     public static final int REASON_STATE_CHANGE_WITH_SESSION_MANAGEMENT_COMMANDS = 0x00;
+    @Rule
+    public final CheckFlagsRule mCheckFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule();
+
 
     @Before
     public void setup() throws Exception {
@@ -117,16 +125,37 @@ public class UwbManagerTest {
         assertThat(mUwbManager).isNotNull();
 
         // Ensure UWB is toggled on.
-        ShellIdentityUtils.invokeWithShellPermissions(() -> {
+        UiAutomation uiAutomation = getInstrumentation().getUiAutomation();
+        try {
+            // Needs UWB_PRIVILEGED permission which is held by shell.
+            uiAutomation.adoptShellPermissionIdentity();
             if (!mUwbManager.isUwbEnabled()) {
-                try {
-                    setUwbEnabledAndWaitForCompletion(true);
-                } catch (Exception e) {
-                    fail("Exception while processing UWB toggle " + e);
-                }
+                setUwbEnabledAndWaitForCompletion(true);
+            }
+            if (mUwbManager.isUwbHwIdleTurnOffEnabled()) {
+                // If HW idle mode is turned on, vote for the UWB hardware for tests to pass.
+                requestUwbHwEnabledAndWaitForCompletion(true);
             }
             mDefaultChipId = mUwbManager.getDefaultChipId();
-        });
+        } finally {
+            uiAutomation.dropShellPermissionIdentity();
+        }
+    }
+
+    @After
+    public void teardown() throws Exception {
+        UiAutomation uiAutomation = getInstrumentation().getUiAutomation();
+        try {
+            // Needs UWB_PRIVILEGED permission which is held by shell.
+            uiAutomation.adoptShellPermissionIdentity();
+            if (mUwbManager.isUwbHwIdleTurnOffEnabled()) {
+                // If HW idle mode is turned on, reset vote for the UWB hardware.
+                requestUwbHwEnabledAndWaitForCompletion(false);
+            }
+            mDefaultChipId = mUwbManager.getDefaultChipId();
+        } finally {
+            uiAutomation.dropShellPermissionIdentity();
+        }
     }
 
     // Should be invoked with shell permissions.
@@ -1962,5 +1991,42 @@ public class UwbManagerTest {
         assertThrows(NullPointerException.class,
                 () -> mUwbManager.getUwbActivityEnergyInfoAsync(Executors.newSingleThreadExecutor(),
                         null));
+    }
+
+    // Should be invoked with shell permissions.
+    private void requestUwbHwEnabledAndWaitForCompletion(boolean enabled) throws Exception {
+        CountDownLatch countDownLatch = new CountDownLatch(1);
+        int adapterState = enabled ? STATE_ENABLED_INACTIVE : STATE_ENABLED_HW_IDLE;
+        AdapterStateCallback adapterStateCallback =
+                new AdapterStateCallback(countDownLatch, adapterState);
+        try {
+            mUwbManager.registerAdapterStateCallback(
+                    Executors.newSingleThreadExecutor(), adapterStateCallback);
+            mUwbManager.requestUwbHwEnabled(enabled);
+            assertThat(countDownLatch.await(2, TimeUnit.SECONDS)).isTrue();
+            assertThat(mUwbManager.isUwbHwEnabled()).isEqualTo(enabled);
+            assertThat(adapterStateCallback.state).isEqualTo(adapterState);
+        } finally {
+            mUwbManager.unregisterAdapterStateCallback(adapterStateCallback);
+        }
+    }
+
+    @Test
+    @CddTest(requirements = {"7.3.13/C-1-1,C-1-2,C-1-4"})
+    @RequiresFlagsEnabled("com.android.uwb.flags.hw_state")
+    public void testUwbHwStateToggle() throws Exception {
+        assumeTrue(mUwbManager.isUwbHwIdleTurnOffEnabled());
+        UiAutomation uiAutomation = getInstrumentation().getUiAutomation();
+        try {
+            // Needs UWB_PRIVILEGED permission which is held by shell.
+            uiAutomation.adoptShellPermissionIdentity();
+            assertThat(mUwbManager.isUwbHwEnabled()).isTrue();
+            assertThat(mUwbManager.getAdapterState()).isEqualTo(STATE_ENABLED_INACTIVE);
+            // Toggle the HW state on & off.
+            requestUwbHwEnabledAndWaitForCompletion(false);
+            requestUwbHwEnabledAndWaitForCompletion(true);
+        } finally {
+            uiAutomation.dropShellPermissionIdentity();
+        }
     }
 }

@@ -27,7 +27,6 @@ import android.content.IntentFilter;
 import android.database.ContentObserver;
 import android.net.Uri;
 import android.os.Binder;
-import android.os.IBinder;
 import android.os.ParcelFileDescriptor;
 import android.os.PersistableBundle;
 import android.os.Process;
@@ -434,14 +433,13 @@ public class UwbServiceImpl extends IUwbAdapter.Stub {
     }
 
     @Override
-    public synchronized void requestHwEnabled(
-            boolean enabled, AttributionSource attributionSource, IBinder binder)
+    public synchronized void requestHwEnabled(boolean enabled, AttributionSource attributionSource)
             throws RemoteException {
         enforceUwbPrivilegedPermission();
         if (!mUwbInjector.getDeviceConfigFacade().isHwIdleTurnOffEnabled()) {
             throw new IllegalStateException("Hw Idle turn off not enabled");
         }
-        mUwbServiceCore.requestHwEnabled(enabled, attributionSource, binder);
+        mUwbServiceCore.requestHwEnabled(enabled, attributionSource);
     }
 
     @Override

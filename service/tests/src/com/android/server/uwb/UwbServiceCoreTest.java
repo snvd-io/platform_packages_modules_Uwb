@@ -271,6 +271,7 @@ public class UwbServiceCoreTest {
         when(mUwbInjector.getMultichipData()).thenReturn(uwbMultichipData);
         when(mDeviceConfigFacade.getBugReportMinIntervalMs())
                 .thenReturn(DeviceConfigFacade.DEFAULT_BUG_REPORT_MIN_INTERVAL_MS);
+        when(mDeviceConfigFacade.isHwIdleTurnOffEnabled()).thenReturn(false);
         when(mUwbInjector.getProfileManager()).thenReturn(mProfileManager);
         doAnswer(invocation -> {
             FutureTask t = invocation.getArgument(0);

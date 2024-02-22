@@ -17,7 +17,6 @@
 package android.uwb;
 
 import android.content.AttributionSource;
-import android.os.IBinder;
 import android.os.PersistableBundle;
 import android.uwb.IUwbAdapterStateCallbacks;
 import android.uwb.IUwbAdfProvisionStateCallbacks;
@@ -302,7 +301,7 @@ interface IUwbAdapter {
   int getAdapterState();
 
   boolean isHwIdleTurnOffEnabled();
-  void requestHwEnabled(boolean enabled, in AttributionSource attributionSource, IBinder binder);
+  void requestHwEnabled(boolean enabled, in AttributionSource attributionSource);
   boolean isHwEnableRequested(in AttributionSource attributionSource);
 
   /**

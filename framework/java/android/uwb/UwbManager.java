@@ -816,9 +816,7 @@ public final class UwbManager {
     @RequiresPermission(permission.UWB_PRIVILEGED)
     public void requestUwbHwEnabled(boolean enabled) {
         try {
-            mUwbAdapter.requestHwEnabled(
-                    enabled, mContext.getAttributionSource(),
-                    new Binder(mContext.getPackageName()));
+            mUwbAdapter.requestHwEnabled(enabled, mContext.getAttributionSource());
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }

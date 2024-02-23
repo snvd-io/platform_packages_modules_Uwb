@@ -746,7 +746,7 @@ public final class UwbManager {
      *
      * <p>
      * If the device supports automatically turning off UWB hardware, the state of UWB hardware
-     * is controller by:
+     * is controlled by:
      * <li> UWB user toggle state or Airplane mode state, AND </li>
      * <li> Whether any clients are actively enabling UWB </li>
      * </p>

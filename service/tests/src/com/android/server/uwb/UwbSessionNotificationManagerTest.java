@@ -424,6 +424,18 @@ public class UwbSessionNotificationManagerTest {
     }
 
     @Test
+    public void testOnRangingStartFailedWithUciReasonCode() throws Exception {
+        int reasonCode =  UwbUciConstants.REASON_ERROR_SESSION_KEY_NOT_FOUND;
+        mUwbSessionNotificationManager.onRangingStartFailedWithUciReasonCode(
+                mUwbSession, reasonCode);
+
+        int expectedStatusCode = UwbUciConstants.STATUS_CODE_ERROR_SESSION_NOT_EXIST;
+        verify(mIUwbRangingCallbacks).onRangingStartFailed(eq(mSessionHandle),
+                eq(RangingChangeReason.PROTOCOL_SPECIFIC),
+                argThat(p -> (p.getInt("status_code")) == expectedStatusCode));
+    }
+
+    @Test
     public void testOnRangingStoppedWithUciReasonCode_reasonLocalApi() throws Exception {
         int reasonCode = UwbUciConstants.REASON_STATE_CHANGE_WITH_SESSION_MANAGEMENT_COMMANDS;
         mUwbSessionNotificationManager.onRangingStoppedWithUciReasonCode(mUwbSession, reasonCode);

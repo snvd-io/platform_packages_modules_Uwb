@@ -850,7 +850,7 @@ public class UwbSessionManagerTest {
                 UwbUciConstants.UWB_SESSION_STATE_IDLE,
                 UwbUciConstants.REASON_MAX_RANGING_ROUND_RETRY_COUNT_REACHED);
 
-        verify(mockUwbSession, times(2)).getWaitObj();
+        verify(mockUwbSession, times(3)).getWaitObj();
         verify(mockUwbSession).setSessionState(eq(UwbUciConstants.UWB_SESSION_STATE_IDLE));
         verify(mUwbSessionNotificationManager).onRangingStoppedWithUciReasonCode(
                 eq(mockUwbSession),
@@ -870,7 +870,7 @@ public class UwbSessionManagerTest {
                 UwbUciConstants.UWB_SESSION_STATE_IDLE,
                 UwbUciConstants.REASON_STATE_CHANGE_WITH_SESSION_MANAGEMENT_COMMANDS);
 
-        verify(mockUwbSession, times(2)).getWaitObj();
+        verify(mockUwbSession, times(3)).getWaitObj();
         verify(mockUwbSession).setSessionState(eq(UwbUciConstants.UWB_SESSION_STATE_IDLE));
         verify(mUwbSessionNotificationManager, never()).onRangingStoppedWithUciReasonCode(
                 any(), anyInt());
@@ -3023,10 +3023,37 @@ public class UwbSessionManagerTest {
                 uwbSession.getSessionHandle(), uwbSession.getParams());
         mTestLooper.dispatchAll();
 
-        verify(mUwbSessionNotificationManager).onRangingStartFailed(
-                eq(uwbSession), eq(UwbUciConstants.STATUS_CODE_FAILED));
+        // In this scenario, there is no SESSION_STATUS_NTF received, so send an undefined
+        // reasonCode (-1).
+        verify(mUwbSessionNotificationManager).onRangingStartFailedWithUciReasonCode(
+                eq(uwbSession), eq(-1));
         verify(mUwbMetrics).longRangingStartEvent(
                 eq(uwbSession), eq(UwbUciConstants.STATUS_CODE_FAILED));
+    }
+
+    @Test
+    public void execStartRanging_sessionStateIdle_reasonSessionKeyNotFound() throws Exception {
+        UwbSession uwbSession = prepareExistingUwbSession();
+
+        // set up for start ranging - it fails and session_state stays at IDLE.
+        doReturn(UwbUciConstants.UWB_SESSION_STATE_IDLE).when(uwbSession).getSessionState();
+        when(mNativeUwbManager.startRanging(eq(TEST_SESSION_ID), anyString()))
+                .thenReturn((byte) UwbUciConstants.STATUS_CODE_OK);
+
+        // UWBS sends the SESSION_STATS_NTF with ReasonCode as REASON_ERROR_SESSION_KEY_NOT_FOUND.
+        mUwbSessionManager.onSessionStatusNotificationReceived(
+                TEST_SESSION_ID,
+                UwbUciConstants.UWB_SESSION_STATE_IDLE,
+                UwbUciConstants.REASON_ERROR_SESSION_KEY_NOT_FOUND);
+
+        mUwbSessionManager.startRanging(
+                uwbSession.getSessionHandle(), uwbSession.getParams());
+        mTestLooper.dispatchAll();
+
+        verify(mUwbSessionNotificationManager).onRangingStartFailedWithUciReasonCode(
+                eq(uwbSession), eq(UwbUciConstants.REASON_ERROR_SESSION_KEY_NOT_FOUND));
+        verify(mUwbMetrics).longRangingStartEvent(
+                eq(uwbSession), eq(UwbUciConstants.STATUS_CODE_ERROR_SESSION_NOT_EXIST));
     }
 
     private void doTest_sendData_success_validUwbSession(byte[] macAddress, int dataTransferStatus)

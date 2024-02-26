@@ -171,6 +171,23 @@ public class UwbSessionNotificationManager {
         }
     }
 
+    public void onRangingStartFailedWithUciReasonCode(UwbSession uwbSession, int reasonCode)  {
+        SessionHandle sessionHandle = uwbSession.getSessionHandle();
+        IUwbRangingCallbacks uwbRangingCallbacks = uwbSession.getIUwbRangingCallbacks();
+        try {
+            int statusCode =
+                    UwbSessionNotificationHelper.convertUciReasonCodeToUciStatusCode(reasonCode);
+            uwbRangingCallbacks.onRangingStartFailed(sessionHandle,
+                    UwbSessionNotificationHelper.convertUciReasonCodeToApiReasonCode(reasonCode),
+                    UwbSessionNotificationHelper.convertUciStatusToParam(
+                            uwbSession.getProtocolName(), statusCode));
+            Log.i(TAG, "IUwbRangingCallbacks - onRangingStartFailedWithUciReasonCode");
+        } catch (Exception e) {
+            Log.e(TAG, "IUwbRangingCallbacks - onRangingStartFailedWithUciReasonCode : Failed");
+            e.printStackTrace();
+        }
+    }
+
     private void onRangingStoppedInternal(UwbSession uwbSession, int reason,
             PersistableBundle params)  {
         SessionHandle sessionHandle = uwbSession.getSessionHandle();

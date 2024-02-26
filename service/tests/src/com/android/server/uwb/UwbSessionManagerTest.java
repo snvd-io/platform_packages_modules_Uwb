@@ -850,7 +850,7 @@ public class UwbSessionManagerTest {
                 UwbUciConstants.UWB_SESSION_STATE_IDLE,
                 UwbUciConstants.REASON_MAX_RANGING_ROUND_RETRY_COUNT_REACHED);
 
-        verify(mockUwbSession, times(3)).getWaitObj();
+        verify(mockUwbSession, times(2)).getWaitObj();
         verify(mockUwbSession).setSessionState(eq(UwbUciConstants.UWB_SESSION_STATE_IDLE));
         verify(mUwbSessionNotificationManager).onRangingStoppedWithUciReasonCode(
                 eq(mockUwbSession),
@@ -870,7 +870,7 @@ public class UwbSessionManagerTest {
                 UwbUciConstants.UWB_SESSION_STATE_IDLE,
                 UwbUciConstants.REASON_STATE_CHANGE_WITH_SESSION_MANAGEMENT_COMMANDS);
 
-        verify(mockUwbSession, times(3)).getWaitObj();
+        verify(mockUwbSession, times(2)).getWaitObj();
         verify(mockUwbSession).setSessionState(eq(UwbUciConstants.UWB_SESSION_STATE_IDLE));
         verify(mUwbSessionNotificationManager, never()).onRangingStoppedWithUciReasonCode(
                 any(), anyInt());

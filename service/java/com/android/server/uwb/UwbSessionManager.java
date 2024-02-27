@@ -446,6 +446,11 @@ public class UwbSessionManager implements INativeUwbManager.SessionNotification,
         int prevState = uwbSession.getSessionState();
         setCurrentSessionState((int) sessionId, state);
 
+        // Store the reasonCode before notifying on the waitObj.
+        synchronized (uwbSession.getWaitObj()) {
+            uwbSession.setLastSessionStatusNtfReasonCode(reasonCode);
+        }
+
         if ((uwbSession.getOperationType() == SESSION_ON_DEINIT
                 && state == UwbUciConstants.UWB_SESSION_STATE_IDLE)
                 || (uwbSession.getOperationType() == SESSION_STOP_RANGING
@@ -1569,9 +1574,12 @@ public class UwbSessionManager implements INativeUwbManager.SessionNotification,
                                     uwbSession.reconfigureFiraSessionOnFgStateChange();
                                 }
                             } else {
-                                status = UwbUciConstants.STATUS_CODE_FAILED;
-                                mSessionNotificationManager.onRangingStartFailed(uwbSession,
-                                        status);
+                                int reasonCode = uwbSession.getLastSessionStatusNtfReasonCode();
+                                status =
+                                        UwbSessionNotificationHelper.convertUciReasonCodeToUciStatusCode(
+                                               reasonCode);
+                                mSessionNotificationManager.onRangingStartFailedWithUciReasonCode(
+                                        uwbSession, reasonCode);
                             }
                         }
                         return status;
@@ -2131,6 +2139,9 @@ public class UwbSessionManager implements INativeUwbManager.SessionNotification,
 
         // Whether data delivery permission check is needed for the ranging session.
         private boolean mDataDeliveryPermissionCheckNeeded = true;
+
+        // reasonCode from the last received SESSION_STATUS_NTF for this session.
+        private int mLastSessionStatusNtfReasonCode = -1;
 
         @VisibleForTesting
         public List<UwbControlee> mControleeList;
@@ -2893,6 +2904,14 @@ public class UwbSessionManager implements INativeUwbManager.SessionNotification,
 
         public void setOperationType(int type) {
             mOperationType = type;
+        }
+
+        public int getLastSessionStatusNtfReasonCode() {
+            return mLastSessionStatusNtfReasonCode;
+        }
+
+        public void setLastSessionStatusNtfReasonCode(int lastSessionStatusNtfReasonCode) {
+            mLastSessionStatusNtfReasonCode = lastSessionStatusNtfReasonCode;
         }
 
         /** Creates a filter engine based on the device configuration. */

@@ -78,6 +78,8 @@ public class UwbUciConstants {
     public static final int REASON_ERROR_HUS_CFP_PHASE_TOO_SHORT = 0x27;
     public static final int REASON_ERROR_HUS_CAP_PHASE_TOO_SHORT = 0x28;
     public static final int REASON_ERROR_HUS_OTHERS = 0x29;
+    public static final int REASON_ERROR_SESSION_KEY_NOT_FOUND = 0x2A;
+    public static final int REASON_ERROR_SUB_SESSION_KEY_NOT_FOUND = 0x2B;
     /* Vendor Specific reason codes */
     public static final int REASON_REGULATION_UWB_OFF =
             UwbVendorReasonCodes.REASON_REGULATION_UWB_OFF;

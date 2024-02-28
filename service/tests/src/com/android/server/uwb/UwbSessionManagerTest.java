@@ -132,6 +132,8 @@ import com.google.uwb.support.ccc.CccRangingStartedParams;
 import com.google.uwb.support.ccc.CccSpecificationParams;
 import com.google.uwb.support.ccc.CccStartRangingParams;
 import com.google.uwb.support.dltdoa.DlTDoARangingRoundsUpdate;
+import com.google.uwb.support.fira.FiraDataTransferPhaseConfig;
+import com.google.uwb.support.fira.FiraDataTransferPhaseConfigStatusCode;
 import com.google.uwb.support.fira.FiraHybridSessionConfig;
 import com.google.uwb.support.fira.FiraOpenSessionParams;
 import com.google.uwb.support.fira.FiraParams;
@@ -152,6 +154,7 @@ import org.mockito.MockitoAnnotations;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
@@ -4435,6 +4438,185 @@ public class UwbSessionManagerTest {
     }
 
     @Test
+    public void testSetDataTransferPhaseConfig() throws Exception {
+        UwbSession uwbSession = prepareExistingUwbSession();
+        byte dtpcmRepetition = 0;
+        byte dataTransferControl = 0;
+        byte dtpmlSize = 2;
+        byte[] macAddressBytes = new byte[] { 0x22, 0x11, 0x44, 0x33 };
+        byte[] slotBitmapBytes = new byte[] { 0x10, 0x20 };
+
+        List<FiraDataTransferPhaseConfig.FiraDataTransferPhaseManagementList>
+                    firaDataTransferPhaseManagementList =  new ArrayList<>();
+
+        UwbAddress uwbAddress = UwbAddress.fromBytes(new byte[]{0x22, 0x11});
+        firaDataTransferPhaseManagementList.add(
+                new FiraDataTransferPhaseConfig.FiraDataTransferPhaseManagementList(
+                uwbAddress, new byte[] {(byte) 0x10}));
+
+        uwbAddress = UwbAddress.fromBytes(new byte[] {0x44, 0x33});
+        firaDataTransferPhaseManagementList.add(
+                new FiraDataTransferPhaseConfig.FiraDataTransferPhaseManagementList(
+                uwbAddress, new byte[] {(byte) 0x20}));
+
+        FiraDataTransferPhaseConfig firaDataTransferPhaseConfig =
+                new FiraDataTransferPhaseConfig.Builder()
+                   .setDtpcmRepetition((byte) dtpcmRepetition)
+                   .setMacAddressMode((byte) 0)
+                   .setSlotBitmapSize((byte) 1)
+                   .setDataTransferPhaseManagementList(firaDataTransferPhaseManagementList)
+                   .build();
+
+        when(mNativeUwbManager.setDataTransferPhaseConfig(eq(TEST_SESSION_ID),
+                eq(dtpcmRepetition), eq(dataTransferControl), eq(dtpmlSize), eq(macAddressBytes),
+                eq(slotBitmapBytes), eq(TEST_CHIP_ID)))
+                .thenReturn((byte) UwbUciConstants.STATUS_CODE_OK);
+
+        mUwbSessionManager.setDataTransferPhaseConfig(
+                uwbSession.getSessionHandle(), firaDataTransferPhaseConfig.toBundle());
+        mTestLooper.dispatchNext();
+
+        assertThat(mNativeUwbManager.setDataTransferPhaseConfig(TEST_SESSION_ID,
+                dtpcmRepetition, dataTransferControl, dtpmlSize, macAddressBytes,
+                slotBitmapBytes, TEST_CHIP_ID)).isEqualTo(UwbUciConstants.STATUS_CODE_OK);
+    }
+
+    @Test
+    public void testSetDataTransferPhaseConfigNonZeroslotBitMap() throws Exception {
+        UwbSession uwbSession = prepareExistingUwbSession();
+        byte dtpcmRepetition = 0;
+        byte dataTransferControl = 4;
+        byte dtpmlSize = 2;
+        byte[] macAddressBytes = new byte[] { 0x22, 0x11, 0x44, 0x33 };
+        byte[] slotBitmapBytes = new byte[]
+                { 0x10, 0x20, 0x30, 0x40, 0x50, 0x60, 0x70, (byte) 0x80 };
+
+        List<FiraDataTransferPhaseConfig.FiraDataTransferPhaseManagementList>
+                    firaDataTransferPhaseManagementList =  new ArrayList<>();
+
+        UwbAddress uwbAddress = UwbAddress.fromBytes(new byte[]{0x22, 0x11});
+        firaDataTransferPhaseManagementList.add(
+                new FiraDataTransferPhaseConfig.FiraDataTransferPhaseManagementList(
+                uwbAddress, new byte[] {0x10, 0x20, 0x30, 0x40}));
+
+        uwbAddress = UwbAddress.fromBytes(new byte[] {0x44, 0x33});
+        firaDataTransferPhaseManagementList.add(
+                new FiraDataTransferPhaseConfig.FiraDataTransferPhaseManagementList(
+                uwbAddress, new byte[] {0x50, 0x60, 0x70, (byte) 0x80}));
+
+        FiraDataTransferPhaseConfig firaDataTransferPhaseConfig =
+                new FiraDataTransferPhaseConfig.Builder()
+                   .setDtpcmRepetition((byte) dtpcmRepetition)
+                   .setMacAddressMode((byte) 0)
+                   .setSlotBitmapSize((byte) 4)
+                   .setDataTransferPhaseManagementList(firaDataTransferPhaseManagementList)
+                   .build();
+
+        when(mNativeUwbManager.setDataTransferPhaseConfig(eq(TEST_SESSION_ID),
+                eq(dtpcmRepetition), eq(dataTransferControl), eq(dtpmlSize), eq(macAddressBytes),
+                eq(slotBitmapBytes), eq(TEST_CHIP_ID)))
+                .thenReturn((byte) UwbUciConstants.STATUS_CODE_OK);
+
+        mUwbSessionManager.setDataTransferPhaseConfig(
+                uwbSession.getSessionHandle(), firaDataTransferPhaseConfig.toBundle());
+        mTestLooper.dispatchNext();
+
+        assertThat(mNativeUwbManager.setDataTransferPhaseConfig(TEST_SESSION_ID,
+                dtpcmRepetition, dataTransferControl, dtpmlSize, macAddressBytes,
+                slotBitmapBytes, TEST_CHIP_ID)).isEqualTo(UwbUciConstants.STATUS_CODE_OK);
+    }
+
+    @Test
+    public void testSetDataTransferPhaseConfigFailedDueToInvalidSessionType() throws Exception {
+        byte dtpcmRepetition = 0;
+        byte dataTransferControl = 0;
+        byte dtpmlSize = 2;
+        byte[] macAddressBytes = new byte[] { 0x22, 0x11, 0x44, 0x33 };
+        byte[] slotBitmapBytes = new byte[] { 0x10, 0x20 };
+        FiraOpenSessionParams params = new FiraOpenSessionParams.Builder()
+                .setDeviceAddress(UwbAddress.fromBytes(new byte[] {(byte) 0x01, (byte) 0x02 }))
+                .setVendorId(new byte[] { (byte) 0x00, (byte) 0x01 })
+                .setStaticStsIV(new byte[] { (byte) 0x01, (byte) 0x02, (byte) 0x03,
+                        (byte) 0x04, (byte) 0x05, (byte) 0x06 })
+                .setDestAddressList(Arrays.asList(
+                        UWB_DEST_ADDRESS))
+                .setProtocolVersion(new FiraProtocolVersion(1, 0))
+                .setSessionId(10)
+                /* Invalid session type for data transfer phase config */
+                .setSessionType(FiraParams.SESSION_TYPE_RANGING)
+                .setDeviceType(FiraParams.RANGING_DEVICE_TYPE_CONTROLLER)
+                .setDeviceRole(FiraParams.RANGING_DEVICE_ROLE_INITIATOR)
+                .setMultiNodeMode(FiraParams.MULTI_NODE_MODE_UNICAST)
+                .setRangingIntervalMs(TEST_RANGING_INTERVAL_MS)
+                .setDataRepetitionCount(0)
+                .build();
+        UwbSession uwbSession = prepareExistingUwbSessionActive(params);
+
+        List<FiraDataTransferPhaseConfig.FiraDataTransferPhaseManagementList>
+                    firaDataTransferPhaseManagementList =  new ArrayList<>();
+        UwbAddress uwbAddress = UwbAddress.fromBytes(new byte[]{0x22, 0x11});
+        firaDataTransferPhaseManagementList.add(
+                new FiraDataTransferPhaseConfig.FiraDataTransferPhaseManagementList(
+                uwbAddress, new byte[] {(byte) 0x10}));
+        uwbAddress = UwbAddress.fromBytes(new byte[] {0x44, 0x33});
+        firaDataTransferPhaseManagementList.add(
+                new FiraDataTransferPhaseConfig.FiraDataTransferPhaseManagementList(
+                uwbAddress, new byte[] {(byte) 0x20, 0x30})); //Invalid slot bit map
+        FiraDataTransferPhaseConfig firaDataTransferPhaseConfig =
+                new FiraDataTransferPhaseConfig.Builder()
+                   .setDtpcmRepetition((byte) dtpcmRepetition)
+                   .setMacAddressMode((byte) 0)
+                   .setSlotBitmapSize((byte) 1)
+                   .setDataTransferPhaseManagementList(firaDataTransferPhaseManagementList)
+                   .build();
+
+        mUwbSessionManager.setDataTransferPhaseConfig(
+                uwbSession.getSessionHandle(), firaDataTransferPhaseConfig.toBundle());
+        mTestLooper.dispatchNext();
+
+        verify(mNativeUwbManager, never()).setDataTransferPhaseConfig(TEST_SESSION_ID,
+                dtpcmRepetition, dataTransferControl, dtpmlSize, macAddressBytes,
+                slotBitmapBytes, TEST_CHIP_ID);
+    }
+
+
+    @Test
+    public void testSetDataTransferPhaseConfigFailedDueToInvalidList() throws Exception {
+        UwbSession uwbSession = prepareExistingUwbSession();
+        byte dtpcmRepetition = 0;
+        byte dataTransferControl = 0;
+        byte dtpmlSize = 2;
+        byte[] macAddressBytes = new byte[] { 0x22, 0x11, 0x44, 0x33 };
+        byte[] slotBitmapBytes = new byte[] { 0x10, 0x20 };
+
+        List<FiraDataTransferPhaseConfig.FiraDataTransferPhaseManagementList>
+                    firaDataTransferPhaseManagementList =  new ArrayList<>();
+
+        UwbAddress uwbAddress = UwbAddress.fromBytes(new byte[]{0x22, 0x11});
+        firaDataTransferPhaseManagementList.add(
+                new FiraDataTransferPhaseConfig.FiraDataTransferPhaseManagementList(
+                uwbAddress, new byte[] {(byte) 0x10}));
+
+        //Size of dtpml-Size is 2 but only one set of configs are provided
+        FiraDataTransferPhaseConfig firaDataTransferPhaseConfig =
+                new FiraDataTransferPhaseConfig.Builder()
+                   .setDtpcmRepetition((byte) dtpcmRepetition)
+                   .setMacAddressMode((byte) 0)
+                   .setSlotBitmapSize((byte) 1)
+                   .setDataTransferPhaseManagementList(firaDataTransferPhaseManagementList)
+                   .build();
+
+        mUwbSessionManager.setDataTransferPhaseConfig(
+                uwbSession.getSessionHandle(), firaDataTransferPhaseConfig.toBundle());
+        mTestLooper.dispatchNext();
+
+        verify(mNativeUwbManager, never()).setDataTransferPhaseConfig(TEST_SESSION_ID,
+                dtpcmRepetition, dataTransferControl, dtpmlSize, macAddressBytes,
+                slotBitmapBytes, TEST_CHIP_ID);
+    }
+
+
+    @Test
     public void testQueryDataSize() throws Exception {
         UwbSession uwbSession = prepareExistingUwbSession();
 
@@ -4834,6 +5016,33 @@ public class UwbSessionManagerTest {
                 indices.length, indices, uwbSession.getChipId());
         verify(mUwbSessionNotificationManager).onRangingRoundsUpdateStatus(any(), any());
     }
+
+
+    @Test
+    public void onDataTransferPhaseConfigNotificationReceived()
+            throws Exception {
+        UwbSession uwbSession = prepareExistingUwbSession();
+        PersistableBundle bundle = new FiraDataTransferPhaseConfigStatusCode.Builder()
+                 .setStatusCode(
+                 UwbUciConstants.STATUS_CODE_DATA_TRANSFER_PHASE_CONFIG_DTPCM_CONFIG_SUCCESS)
+                 .build().toBundle();
+        //successfully setting the configuration
+        mUwbSessionManager.onDataTransferPhaseConfigNotificationReceived(uwbSession.getSessionId(),
+                UwbUciConstants.STATUS_CODE_DATA_TRANSFER_PHASE_CONFIG_DTPCM_CONFIG_SUCCESS);
+        mTestLooper.dispatchAll();
+        verify(mUwbSessionNotificationManager)
+                .onDataTransferPhaseConfigured(
+                isA(UwbSession.class), isA(PersistableBundle.class));
+
+        //failed to set the configuration
+        mUwbSessionManager.onDataTransferPhaseConfigNotificationReceived(uwbSession.getSessionId(),
+                UwbUciConstants
+                .STATUS_CODE_DATA_TRANSFER_PHASE_CONFIG_ERROR_DUPLICATE_SLOT_ASSIGMENT);
+        mTestLooper.dispatchAll();
+        verify(mUwbSessionNotificationManager).onDataTransferPhaseConfigFailed(
+                isA(UwbSession.class), isA(PersistableBundle.class));
+    }
+
 
     @Test
     public void onRadarDataMessageReceivedWithValidUwbSession() {

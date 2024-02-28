@@ -659,6 +659,24 @@ public class UwbSessionNotificationManagerTest {
     }
 
     @Test
+    public void testOnDataTransferPhaseConfigured() throws Exception {
+        mUwbSessionNotificationManager.onDataTransferPhaseConfigured(mUwbSession,
+                PERSISTABLE_BUNDLE);
+
+        verify(mIUwbRangingCallbacks).onDataTransferPhaseConfigured(eq(mSessionHandle),
+                eq(PERSISTABLE_BUNDLE));
+    }
+
+    @Test
+    public void testOnDataTransferPhaseConfigFailed() throws Exception {
+        mUwbSessionNotificationManager.onDataTransferPhaseConfigFailed(mUwbSession,
+                PERSISTABLE_BUNDLE);
+
+        verify(mIUwbRangingCallbacks).onDataTransferPhaseConfigFailed(eq(mSessionHandle),
+                eq(PERSISTABLE_BUNDLE));
+    }
+
+    @Test
     public void testOnRangingRoundsUpdateStatus() throws RemoteException {
         PersistableBundle bundle = new PersistableBundle();
         mUwbSessionNotificationManager.onRangingRoundsUpdateStatus(mUwbSession, bundle);

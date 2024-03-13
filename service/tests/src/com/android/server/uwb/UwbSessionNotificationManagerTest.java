@@ -660,20 +660,27 @@ public class UwbSessionNotificationManagerTest {
 
     @Test
     public void testOnDataTransferPhaseConfigured() throws Exception {
+        int dataTransferPhaseConfigStatus =
+                UwbUciConstants.STATUS_CODE_DATA_TRANSFER_PHASE_CONFIG_DTPCM_CONFIG_SUCCESS;
         mUwbSessionNotificationManager.onDataTransferPhaseConfigured(mUwbSession,
-                PERSISTABLE_BUNDLE);
+                dataTransferPhaseConfigStatus);
 
         verify(mIUwbRangingCallbacks).onDataTransferPhaseConfigured(eq(mSessionHandle),
-                eq(PERSISTABLE_BUNDLE));
+                argThat(p -> (p.getInt("data_transfer_phase_config_status_code"))
+                      == dataTransferPhaseConfigStatus));
     }
 
     @Test
     public void testOnDataTransferPhaseConfigFailed() throws Exception {
+        int dataTransferPhaseConfigStatus =
+                UwbUciConstants.STATUS_CODE_DATA_TRANSFER_PHASE_CONFIG_ERROR_DUPLICATE_SLOT_ASSIGNMENT;
         mUwbSessionNotificationManager.onDataTransferPhaseConfigFailed(mUwbSession,
-                PERSISTABLE_BUNDLE);
+                dataTransferPhaseConfigStatus);
 
         verify(mIUwbRangingCallbacks).onDataTransferPhaseConfigFailed(eq(mSessionHandle),
-                eq(PERSISTABLE_BUNDLE));
+                eq(RangingChangeReason.PROTOCOL_SPECIFIC),
+                argThat(p -> (p.getInt("data_transfer_phase_config_status_code"))
+                      == dataTransferPhaseConfigStatus));
     }
 
     @Test

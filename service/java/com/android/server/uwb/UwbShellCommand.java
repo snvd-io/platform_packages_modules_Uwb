@@ -382,7 +382,7 @@ public class UwbShellCommand extends BasicShellCommandHandler {
                   PersistableBundle params) {
         }
 
-        public void onDataTransferPhaseConfigFailed(SessionHandle sessionHandle,
+        public void onDataTransferPhaseConfigFailed(SessionHandle sessionHandle, int reason,
                 PersistableBundle params) {}
 
         public void onDataReceived(SessionHandle sessionHandle, UwbAddress uwbAddress,

@@ -402,13 +402,13 @@ public class UwbShellCommand extends BasicShellCommandHandler {
                 PersistableBundle parameters) {}
 
         public void onHybridSessionControllerConfigurationFailed(SessionHandle sessionHandle,
-                PersistableBundle parameters) {}
+                int reason, PersistableBundle parameters) {}
 
         public void onHybridSessionControleeConfigured(SessionHandle sessionHandle,
                 PersistableBundle parameters) {}
 
         public void onHybridSessionControleeConfigurationFailed(SessionHandle sessionHandle,
-                PersistableBundle parameters) {}
+                int reason, PersistableBundle parameters) {}
     }
 
 

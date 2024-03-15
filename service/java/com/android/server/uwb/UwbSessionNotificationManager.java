@@ -561,6 +561,7 @@ public class UwbSessionNotificationManager {
         IUwbRangingCallbacks uwbRangingCallbacks = uwbSession.getIUwbRangingCallbacks();
         try {
             uwbRangingCallbacks.onHybridSessionControllerConfigurationFailed(sessionHandle,
+                    UwbSessionNotificationHelper.convertUciStatusToApiReasonCode(status),
                     UwbSessionNotificationHelper.convertUciStatusToParam(
                             uwbSession.getProtocolName(), status));
             Log.i(TAG, "IUwbRangingCallbacks - onHybridSessionControllerConfigurationFailed");
@@ -592,6 +593,7 @@ public class UwbSessionNotificationManager {
         IUwbRangingCallbacks uwbRangingCallbacks = uwbSession.getIUwbRangingCallbacks();
         try {
             uwbRangingCallbacks.onHybridSessionControleeConfigurationFailed(sessionHandle,
+                    UwbSessionNotificationHelper.convertUciStatusToApiReasonCode(status),
                     UwbSessionNotificationHelper.convertUciStatusToParam(
                             uwbSession.getProtocolName(), status));
             Log.i(TAG, "IUwbRangingCallbacks - onHybridSessionControleeConfigurationFailed");

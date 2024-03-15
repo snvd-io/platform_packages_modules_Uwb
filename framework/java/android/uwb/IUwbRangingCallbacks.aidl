@@ -249,7 +249,7 @@ oneway interface IUwbRangingCallbacks {
    * @param parameters protocol specific parameters for set data transfer phase config failure.
    */
   void onDataTransferPhaseConfigFailed(in SessionHandle sessionHandle,
-          in PersistableBundle parameters);
+          RangingChangeReason reason, in PersistableBundle parameters);
 
   /**
    * Invoked when data is received successfully from a remote device.

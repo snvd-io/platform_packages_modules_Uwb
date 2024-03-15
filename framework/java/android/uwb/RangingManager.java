@@ -415,7 +415,7 @@ public class RangingManager extends android.uwb.IUwbRangingCallbacks.Stub {
 
     @Override
     public void onDataTransferPhaseConfigFailed(SessionHandle sessionHandle,
-            PersistableBundle parameters) {
+            @RangingChangeReason int reason, PersistableBundle parameters) {
         synchronized (this) {
             if (!hasSession(sessionHandle)) {
                 Log.w(mTag, "onDataTransferPhaseConfigFailed - received unknown SessionHandle: "
@@ -424,7 +424,7 @@ public class RangingManager extends android.uwb.IUwbRangingCallbacks.Stub {
             }
 
             RangingSession session = mRangingSessionTable.get(sessionHandle);
-            session.onDataTransferPhaseConfigFailed(parameters);
+            session.onDataTransferPhaseConfigFailed(reason, parameters);
         }
     }
 

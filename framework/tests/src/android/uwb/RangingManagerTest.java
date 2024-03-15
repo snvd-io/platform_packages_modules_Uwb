@@ -249,8 +249,8 @@ public class RangingManagerTest {
             rangingManager.onDataTransferPhaseConfigured(handle, PARAMS);
             verify(callback, times(1)).onDataTransferPhaseConfigured(eq(PARAMS));
 
-            rangingManager.onDataTransferPhaseConfigFailed(handle, PARAMS);
-            verify(callback, times(1)).onDataTransferPhaseConfigFailed(eq(PARAMS));
+            rangingManager.onDataTransferPhaseConfigFailed(handle, REASON, PARAMS);
+            verify(callback, times(1)).onDataTransferPhaseConfigFailed(eq(REASON), eq(PARAMS));
         }
 
         rangingManager.onDataReceived(handle, ADDRESS, PARAMS, DATA);
@@ -383,8 +383,8 @@ public class RangingManagerTest {
             rangingManager.onDataTransferPhaseConfigured(handle, PARAMS);
             verify(callback, never()).onDataTransferPhaseConfigured(eq(PARAMS));
 
-            rangingManager.onDataTransferPhaseConfigFailed(handle, PARAMS);
-            verify(callback, never()).onDataTransferPhaseConfigFailed(eq(PARAMS));
+            rangingManager.onDataTransferPhaseConfigFailed(handle, REASON, PARAMS);
+            verify(callback, never()).onDataTransferPhaseConfigFailed(eq(REASON), eq(PARAMS));
         }
 
         rangingManager.onServiceDiscovered(handle, PARAMS);

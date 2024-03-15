@@ -485,7 +485,7 @@ public final class RangingSession implements AutoCloseable {
          */
         @FlaggedApi("com.android.uwb.flags.hybrid_session_support")
         default void onHybridSessionControllerConfigurationFailed(
-                @NonNull PersistableBundle parameters) {
+                @RangingChangeReason int reason, @NonNull PersistableBundle parameters) {
         }
 
         /**
@@ -504,7 +504,7 @@ public final class RangingSession implements AutoCloseable {
          */
         @FlaggedApi("com.android.uwb.flags.hybrid_session_support")
         default void onHybridSessionControleeConfigurationFailed(
-                @NonNull PersistableBundle parameters) {}
+                @RangingChangeReason int reason, @NonNull PersistableBundle parameters) {}
     }
 
     /**
@@ -897,8 +897,8 @@ public final class RangingSession implements AutoCloseable {
      * is invoked.
      *
      * <p>On failing to set the hybrid controller configuration,
-     * {@link RangingSession.Callback#onHybridSessionControllerConfigurationFailed(
-     *  PersistableBundle)} is invoked.
+     * {@link RangingSession.Callback#onHybridSessionControllerConfigurationFailed(int,
+     * PersistableBundle)} is invoked.
      *
      * @param params protocol specific parameters to configure the hybrid session controller
      * @throws RemoteException if a remote error occurred
@@ -926,8 +926,8 @@ public final class RangingSession implements AutoCloseable {
      * is invoked.
      *
      * <p>On failing to set the hybrid Controlee configuration,
-     * {@link RangingSession.Callback#onHybridSessionControleeConfigurationFailed(
-     *  PersistableBundle)} is invoked.
+     * {@link RangingSession.Callback#onHybridSessionControleeConfigurationFailed(int,
+     * PersistableBundle)} is invoked.
      *
      * @param params protocol specific parameters to configure the hybrid session Controlee
      * @throws RemoteException if a remote error occurred
@@ -1331,7 +1331,8 @@ public final class RangingSession implements AutoCloseable {
     /**
      * @hide
      */
-    public void onHybridSessionControllerConfigurationFailed(@NonNull PersistableBundle params) {
+    public void onHybridSessionControllerConfigurationFailed(@Callback.Reason int reason,
+            @NonNull PersistableBundle params) {
         if (!isOpen()) {
             Log.w(mTag, "onHybridSessionControllerConfigurationFailed invoked for non-open"
                     + "session");
@@ -1340,7 +1341,8 @@ public final class RangingSession implements AutoCloseable {
 
         Log.v(mTag, "onHybridSessionControllerConfigurationFailed - sessionHandle: "
                 + mSessionHandle);
-        executeCallback(() -> mCallback.onHybridSessionControllerConfigurationFailed(params));
+        executeCallback(() -> mCallback.onHybridSessionControllerConfigurationFailed(
+                reason, params));
     }
 
     /**
@@ -1359,7 +1361,8 @@ public final class RangingSession implements AutoCloseable {
     /**
      * @hide
      */
-    public void onHybridSessionControleeConfigurationFailed(@NonNull PersistableBundle params) {
+    public void onHybridSessionControleeConfigurationFailed(@Callback.Reason int reason,
+            @NonNull PersistableBundle params) {
         if (!isOpen()) {
             Log.w(mTag, "onHybridSessionControleeConfigurationFailed invoked for non-open"
                     + "session");
@@ -1368,7 +1371,8 @@ public final class RangingSession implements AutoCloseable {
 
         Log.v(mTag, "onHybridSessionControleeConfigurationFailed - sessionHandle: "
                 + mSessionHandle);
-        executeCallback(() -> mCallback.onHybridSessionControleeConfigurationFailed(params));
+        executeCallback(() -> mCallback.onHybridSessionControleeConfigurationFailed(
+                reason, params));
     }
 
     /**

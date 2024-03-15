@@ -684,6 +684,46 @@ public class UwbSessionNotificationManagerTest {
     }
 
     @Test
+    public void testOnHybridSessionControllerConfigured() throws Exception {
+        mUwbSessionNotificationManager.onHybridSessionControllerConfigured(mUwbSession,
+                UwbUciConstants.STATUS_CODE_OK);
+
+        verify(mIUwbRangingCallbacks).onHybridSessionControllerConfigured(eq(mSessionHandle),
+                argThat(p -> (p.getInt("status_code")) == UwbUciConstants.STATUS_CODE_OK));
+    }
+
+    @Test
+    public void testOnHybridSessionControllerConfigurationFailed() throws Exception {
+        mUwbSessionNotificationManager.onHybridSessionControllerConfigurationFailed(mUwbSession,
+                UwbUciConstants.STATUS_CODE_FAILED);
+
+        verify(mIUwbRangingCallbacks).onHybridSessionControllerConfigurationFailed(
+                eq(mSessionHandle),
+                eq(RangingChangeReason.UNKNOWN),
+                argThat(p -> (p.getInt("status_code")) == UwbUciConstants.STATUS_CODE_FAILED));
+    }
+
+    @Test
+    public void testOnHybridSessionControleeConfigured() throws Exception {
+        mUwbSessionNotificationManager.onHybridSessionControleeConfigured(mUwbSession,
+                UwbUciConstants.STATUS_CODE_OK);
+
+        verify(mIUwbRangingCallbacks).onHybridSessionControleeConfigured(eq(mSessionHandle),
+                argThat(p -> (p.getInt("status_code")) == UwbUciConstants.STATUS_CODE_OK));
+    }
+
+    @Test
+    public void testOnHybridSessionControleeConfigurationFailed() throws Exception {
+        mUwbSessionNotificationManager.onHybridSessionControleeConfigurationFailed(mUwbSession,
+                UwbUciConstants.STATUS_CODE_FAILED);
+
+        verify(mIUwbRangingCallbacks).onHybridSessionControleeConfigurationFailed(
+                eq(mSessionHandle),
+                eq(RangingChangeReason.UNKNOWN),
+                argThat(p -> (p.getInt("status_code")) == UwbUciConstants.STATUS_CODE_FAILED));
+    }
+
+    @Test
     public void testOnRangingRoundsUpdateStatus() throws RemoteException {
         PersistableBundle bundle = new PersistableBundle();
         mUwbSessionNotificationManager.onRangingRoundsUpdateStatus(mUwbSession, bundle);

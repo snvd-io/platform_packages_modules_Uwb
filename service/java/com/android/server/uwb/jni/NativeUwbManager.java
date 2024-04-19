@@ -367,8 +367,7 @@ public class NativeUwbManager {
             String chipId) {
         synchronized (mNativeLock) {
             return nativeControllerMulticastListUpdate(sessionId, (byte) action,
-                    (byte) noOfControlee, addresses, subSessionIds, subSessionKeyList, chipId,
-                    mUwbInjector.isMulticastListNtfV2Supported());
+                    (byte) noOfControlee, addresses, subSessionIds, subSessionKeyList, chipId);
         }
     }
 
@@ -599,7 +598,7 @@ public class NativeUwbManager {
 
     private native byte nativeControllerMulticastListUpdate(int sessionId, byte action,
             byte noOfControlee, byte[] address, int[] subSessionId, byte[] subSessionKeyList,
-            String chipId, boolean isMulticastListNtfV2Supported);
+            String chipId);
 
     private native byte nativeSetCountryCode(byte[] countryCode, String chipId);
 

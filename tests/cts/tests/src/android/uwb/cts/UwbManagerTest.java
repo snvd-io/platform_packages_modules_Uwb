@@ -1499,6 +1499,8 @@ public class UwbManagerTest {
             setUwbEnabledAndWaitForCompletion(false);
             assertThat(mUwbManager.getAdapterState()).isEqualTo(STATE_DISABLED);
         } finally {
+            // Toggle the state back on.
+            setUwbEnabledAndWaitForCompletion(true);
             uiAutomation.dropShellPermissionIdentity();
         }
     }

@@ -19,7 +19,7 @@ package {
 
 java_library {
     name: "generic_ranging",
-    sdk_version: "system_VanillaIceCream",
+    sdk_version: "34",
     min_sdk_version: "34",
     installable: false,
     srcs: [

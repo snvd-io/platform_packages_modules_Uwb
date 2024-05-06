@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! takes a JavaVM to a static reference.
+//! Takes a JavaVM to a static reference.
 //!
 //! JavaVM is shared as multiple JavaVM within a single process is not allowed
 //! per [JNI spec](https://docs.oracle.com/javase/8/docs/technotes/guides/jni/spec/invocation.html)
@@ -25,7 +25,7 @@ use uwb_core::error::Result;
 
 static mut JVM: Option<Arc<JavaVM>> = None;
 static INIT: Once = Once::new();
-/// set_once sets the unique JavaVM that can be then accessed using get_static_ref()
+/// Sets the unique JavaVM that can be then accessed using [`get_static_ref`].
 ///
 /// The function shall only be called once.
 pub(crate) fn set_once(jvm: JavaVM) -> Result<()> {
@@ -38,7 +38,7 @@ pub(crate) fn set_once(jvm: JavaVM) -> Result<()> {
     }
     Ok(())
 }
-/// Gets a 'static reference to the unique JavaVM. Returns None if set_once() was never called.
+/// Gets a `'static` reference to the unique JavaVM. Returns `None` if [`set_once`] was never called.
 pub(crate) fn get_static_ref() -> Option<&'static Arc<JavaVM>> {
     // Safety: follows [this pattern](https://doc.rust-lang.org/std/sync/struct.Once.html).
     // Modification to static mut is nested inside call_once.

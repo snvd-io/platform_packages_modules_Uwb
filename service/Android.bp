@@ -44,9 +44,6 @@ java_library {
     required: ["libuwb_uci_jni_rust"],
     sdk_version: "system_server_current",
 
-    lint: {
-        strict_updatability_linting: true,
-    },
     libs: [
         "androidx.annotation_annotation",
         "framework-annotations-lib",

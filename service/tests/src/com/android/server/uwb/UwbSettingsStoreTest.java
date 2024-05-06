@@ -39,10 +39,10 @@ import android.os.PersistableBundle;
 import android.os.test.TestLooper;
 import android.platform.test.annotations.Presubmit;
 import android.provider.Settings;
-import android.test.suitebuilder.annotation.SmallTest;
 import android.util.AtomicFile;
 import android.uwb.UwbManager;
 
+import androidx.test.filters.SmallTest;
 import androidx.test.runner.AndroidJUnit4;
 
 import org.junit.After;
@@ -56,7 +56,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
-
 
 /**
  * Unit tests for {@link com.android.server.uwb.UwbSettingsStore}.

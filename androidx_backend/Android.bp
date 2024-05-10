@@ -71,6 +71,9 @@ java_library {
         "//packages/modules/Uwb/generic_ranging:__subpackages__",
         "//packages/modules/Connectivity/remoteauth:__subpackages__",
     ],
+    lint: {
+        baseline_filename: "lint-baseline.xml",
+    },
 }
 
 android_app {

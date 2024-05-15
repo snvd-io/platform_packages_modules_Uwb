@@ -16,21 +16,21 @@
 
 package com.android.ranging.generic.ranging;
 
-import location.bluemoon.finder.ConfidenceLevel;
-import location.bluemoon.finder.DistanceTraveledCheckConfig;
-import location.bluemoon.finder.ExponentiallyWeightedGaussianModelConfig;
-import location.bluemoon.finder.FuzzyUpdateSchedulerConfig;
-import location.bluemoon.finder.InitialStateSamplerConfig;
-import location.bluemoon.finder.ModelConfigContainer;
-import location.bluemoon.finder.MultiSensorFinderConfig;
-import location.bluemoon.finder.NisDivergenceDetectorConfig;
-import location.bluemoon.finder.OdometryBasedEstimatePropagatorConfig;
-import location.bluemoon.finder.OdometryNoiseAdderConfig;
-import location.bluemoon.finder.OdometryThrottlerConfig;
-import location.bluemoon.finder.ParticleFilterConfig;
-import location.bluemoon.finder.RangeMeasurementConfig;
-import location.bluemoon.finder.RangeMeasurementConfig.RangeSensorModelType;
-import location.bluemoon.finder.VarianceBasedSwitchingMeasurementModelConfig;
+import com.android.ranging.generic.proto.ConfidenceLevel;
+import com.android.ranging.generic.proto.DistanceTraveledCheckConfig;
+import com.android.ranging.generic.proto.ExponentiallyWeightedGaussianModelConfig;
+import com.android.ranging.generic.proto.FuzzyUpdateSchedulerConfig;
+import com.android.ranging.generic.proto.InitialStateSamplerConfig;
+import com.android.ranging.generic.proto.ModelConfigContainer;
+import com.android.ranging.generic.proto.MultiSensorFinderConfig;
+import com.android.ranging.generic.proto.NisDivergenceDetectorConfig;
+import com.android.ranging.generic.proto.OdometryBasedEstimatePropagatorConfig;
+import com.android.ranging.generic.proto.OdometryNoiseAdderConfig;
+import com.android.ranging.generic.proto.OdometryThrottlerConfig;
+import com.android.ranging.generic.proto.ParticleFilterConfig;
+import com.android.ranging.generic.proto.RangeMeasurementConfig;
+import com.android.ranging.generic.proto.RangeMeasurementConfig.RangeSensorModelType;
+import com.android.ranging.generic.proto.VarianceBasedSwitchingMeasurementModelConfig;
 
 /** Default configuration for the Fusion algorithm. */
 public final class DefaultFusionConfig {

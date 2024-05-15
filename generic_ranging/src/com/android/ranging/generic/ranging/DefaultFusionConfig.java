@@ -17,6 +17,7 @@
 package com.android.ranging.generic.ranging;
 
 import com.android.ranging.generic.proto.ConfidenceLevel;
+import com.android.ranging.generic.proto.DebugLoggerConfiguration;
 import com.android.ranging.generic.proto.DistanceTraveledCheckConfig;
 import com.android.ranging.generic.proto.ExponentiallyWeightedGaussianModelConfig;
 import com.android.ranging.generic.proto.FuzzyUpdateSchedulerConfig;
@@ -77,8 +78,8 @@ public final class DefaultFusionConfig {
                 .setOdometryNoiseAdderConfig(
                         OdometryNoiseAdderConfig.newBuilder()
                                 .setNumSpeedFilterTaps(2)
-                                .setMinNoiseStdDevM(0.01)
-                                .setMaxNoiseStdDevM(0.3)
+                                .setMinNoiseStdDevM(0.005)
+                                .setMaxNoiseStdDevM(0.05)
                                 .setMinSpeedMps(0.3)
                                 .setMaxSpeedMps(5)
                                 .build())
@@ -90,7 +91,7 @@ public final class DefaultFusionConfig {
                                 .setActivationThresholdM(1)
                                 .setDefaultUwbNoiseCovariance(0.5)
                                 .build())
-                .setOdometryPollingRateHz(60)
+                .setOdometryPollingRateHz(20)
                 .setOdometryThrottlerConfig(
                         OdometryThrottlerConfig.newBuilder().setThrottlingDtNanos(
                                 100000000).build())
@@ -109,6 +110,11 @@ public final class DefaultFusionConfig {
                                                                 .build())
                                                 .build())
                                 .build())
+                .setDebugLoggerConfiguration(
+                        DebugLoggerConfiguration.newBuilder()
+                                .setAutodumpSizeThresholdBytes(300)
+                                .setOdometryThrottlingNanos(1000000000)
+                                .setEstimateThrottlingNanos(1000000000))
                 .build();
     }
 }

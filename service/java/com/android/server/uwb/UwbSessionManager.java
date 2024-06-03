@@ -217,32 +217,35 @@ public class UwbSessionManager implements INativeUwbManager.SessionNotification,
     public void onUidImportance(final int uid, final int importance) {
         Handler handler = new Handler(mLooper);
         handler.post(() -> {
-            List<UwbSession> uwbSessions = mNonPrivilegedUidToFiraSessionsTable.get(uid);
-            // Not a uid in the watch list
-            if (uwbSessions == null) return;
-            boolean newModeHasNonPrivilegedFgAppOrService =
-                    UwbInjector.isForegroundAppOrServiceImportance(importance);
-            for (UwbSession uwbSession : uwbSessions) {
-                // already at correct state.
-                if (newModeHasNonPrivilegedFgAppOrService
-                        == uwbSession.hasNonPrivilegedFgAppOrService()) {
-                    continue;
-                }
-                uwbSession.setHasNonPrivilegedFgAppOrService(newModeHasNonPrivilegedFgAppOrService);
-                int sessionId = uwbSession.getSessionId();
-                Log.i(TAG, "App state change for session " + sessionId + ". IsFg: "
-                        + newModeHasNonPrivilegedFgAppOrService);
-                // Reconfigure the session based on the new fg/bg state
-                Log.i(TAG, "Session " + sessionId
-                        + " reconfiguring ntf control due to app state change");
-                uwbSession.reconfigureFiraSessionOnFgStateChange();
-                // Recalculate session priority based on the new fg/bg state.
-                if (!uwbSession.mSessionPriorityOverride) {
-                    int newSessionPriority = uwbSession.calculateSessionPriority();
+            synchronized (mNonPrivilegedUidToFiraSessionsTable) {
+                List<UwbSession> uwbSessions = mNonPrivilegedUidToFiraSessionsTable.get(uid);
+                // Not a uid in the watch list
+                if (uwbSessions == null) return;
+                boolean newModeHasNonPrivilegedFgAppOrService =
+                        UwbInjector.isForegroundAppOrServiceImportance(importance);
+                for (UwbSession uwbSession : uwbSessions) {
+                    // already at correct state.
+                    if (newModeHasNonPrivilegedFgAppOrService
+                            == uwbSession.hasNonPrivilegedFgAppOrService()) {
+                        continue;
+                    }
+                    uwbSession.setHasNonPrivilegedFgAppOrService(
+                            newModeHasNonPrivilegedFgAppOrService);
+                    int sessionId = uwbSession.getSessionId();
+                    Log.i(TAG, "App state change for session " + sessionId + ". IsFg: "
+                            + newModeHasNonPrivilegedFgAppOrService);
+                    // Reconfigure the session based on the new fg/bg state
                     Log.i(TAG, "Session " + sessionId
-                            + " recalculating session priority, new priority: "
-                            + newSessionPriority);
-                    uwbSession.setStackSessionPriority(newSessionPriority);
+                            + " reconfiguring ntf control due to app state change");
+                    uwbSession.reconfigureFiraSessionOnFgStateChange();
+                    // Recalculate session priority based on the new fg/bg state.
+                    if (!uwbSession.mSessionPriorityOverride) {
+                        int newSessionPriority = uwbSession.calculateSessionPriority();
+                        Log.i(TAG, "Session " + sessionId
+                                + " recalculating session priority, new priority: "
+                                + newSessionPriority);
+                        uwbSession.setStackSessionPriority(newSessionPriority);
+                    }
                 }
             }
         });
@@ -1688,7 +1691,10 @@ public class UwbSessionManager implements INativeUwbManager.SessionNotification,
     }
 
     void addToNonPrivilegedUidToFiraSessionTableIfNecessary(@NonNull UwbSession uwbSession) {
-        if (uwbSession.getSessionType() == UwbUciConstants.SESSION_TYPE_RANGING) {
+        if (uwbSession.getSessionType() != UwbUciConstants.SESSION_TYPE_RANGING) {
+            return;
+        }
+        synchronized (mNonPrivilegedUidToFiraSessionsTable) {
             AttributionSource nonPrivilegedAppAttrSource =
                     uwbSession.getAnyNonPrivilegedAppInAttributionSource();
             if (nonPrivilegedAppAttrSource != null) {
@@ -1702,24 +1708,28 @@ public class UwbSessionManager implements INativeUwbManager.SessionNotification,
     }
 
     void removeFromNonPrivilegedUidToFiraSessionTableIfNecessary(@NonNull UwbSession uwbSession) {
-        if (uwbSession.getSessionType() == UwbUciConstants.SESSION_TYPE_RANGING) {
-            AttributionSource nonPrivilegedAppAttrSource =
-                    uwbSession.getAnyNonPrivilegedAppInAttributionSource();
-            if (nonPrivilegedAppAttrSource != null) {
-                Log.d(TAG, "Detected end of non privileged FIRA session from "
-                        + nonPrivilegedAppAttrSource);
-                List<UwbSession> sessions = mNonPrivilegedUidToFiraSessionsTable.get(
+        if (uwbSession.getSessionType() != UwbUciConstants.SESSION_TYPE_RANGING) {
+            return;
+        }
+        AttributionSource nonPrivilegedAppAttrSource =
+                uwbSession.getAnyNonPrivilegedAppInAttributionSource();
+        if (nonPrivilegedAppAttrSource == null) {
+            return;
+        }
+        Log.d(TAG, "Detected end of non privileged FIRA session from "
+                + nonPrivilegedAppAttrSource);
+        synchronized (mNonPrivilegedUidToFiraSessionsTable) {
+            List<UwbSession> sessions = mNonPrivilegedUidToFiraSessionsTable.get(
+                    nonPrivilegedAppAttrSource.getUid());
+            if (sessions == null) {
+                Log.wtf(TAG, "No sessions found for uid: "
+                        + nonPrivilegedAppAttrSource.getUid());
+                return;
+            }
+            sessions.remove(uwbSession);
+            if (sessions.isEmpty()) {
+                mNonPrivilegedUidToFiraSessionsTable.remove(
                         nonPrivilegedAppAttrSource.getUid());
-                if (sessions == null) {
-                    Log.wtf(TAG, "No sessions found for uid: "
-                            + nonPrivilegedAppAttrSource.getUid());
-                    return;
-                }
-                sessions.remove(uwbSession);
-                if (sessions.isEmpty()) {
-                    mNonPrivilegedUidToFiraSessionsTable.remove(
-                            nonPrivilegedAppAttrSource.getUid());
-                }
             }
         }
     }

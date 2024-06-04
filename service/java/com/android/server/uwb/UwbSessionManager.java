@@ -122,7 +122,6 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -2809,7 +2808,7 @@ public class UwbSessionManager implements INativeUwbManager.SessionNotification,
          * Gets the list of controlees active under this session.
          */
         public List<UwbControlee> getControleeList() {
-            return Collections.unmodifiableList(mControlees.values().stream().toList());
+            return new ArrayList<>(mControlees.values());
         }
 
         /**
@@ -2817,7 +2816,7 @@ public class UwbSessionManager implements INativeUwbManager.SessionNotification,
          * @return The list of controlee addresses that have active ranging error streak timers.
          */
         public List<UwbAddress> getControleesWithOngoingRangingErrorStreak() {
-            return mMulticastRangingErrorStreakTimerListeners.keySet().stream().toList();
+            return new ArrayList<>(mMulticastRangingErrorStreakTimerListeners.keySet());
         }
 
         /**

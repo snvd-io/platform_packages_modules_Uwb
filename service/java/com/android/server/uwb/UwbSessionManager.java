@@ -122,7 +122,6 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -217,32 +216,35 @@ public class UwbSessionManager implements INativeUwbManager.SessionNotification,
     public void onUidImportance(final int uid, final int importance) {
         Handler handler = new Handler(mLooper);
         handler.post(() -> {
-            List<UwbSession> uwbSessions = mNonPrivilegedUidToFiraSessionsTable.get(uid);
-            // Not a uid in the watch list
-            if (uwbSessions == null) return;
-            boolean newModeHasNonPrivilegedFgAppOrService =
-                    UwbInjector.isForegroundAppOrServiceImportance(importance);
-            for (UwbSession uwbSession : uwbSessions) {
-                // already at correct state.
-                if (newModeHasNonPrivilegedFgAppOrService
-                        == uwbSession.hasNonPrivilegedFgAppOrService()) {
-                    continue;
-                }
-                uwbSession.setHasNonPrivilegedFgAppOrService(newModeHasNonPrivilegedFgAppOrService);
-                int sessionId = uwbSession.getSessionId();
-                Log.i(TAG, "App state change for session " + sessionId + ". IsFg: "
-                        + newModeHasNonPrivilegedFgAppOrService);
-                // Reconfigure the session based on the new fg/bg state
-                Log.i(TAG, "Session " + sessionId
-                        + " reconfiguring ntf control due to app state change");
-                uwbSession.reconfigureFiraSessionOnFgStateChange();
-                // Recalculate session priority based on the new fg/bg state.
-                if (!uwbSession.mSessionPriorityOverride) {
-                    int newSessionPriority = uwbSession.calculateSessionPriority();
+            synchronized (mNonPrivilegedUidToFiraSessionsTable) {
+                List<UwbSession> uwbSessions = mNonPrivilegedUidToFiraSessionsTable.get(uid);
+                // Not a uid in the watch list
+                if (uwbSessions == null) return;
+                boolean newModeHasNonPrivilegedFgAppOrService =
+                        UwbInjector.isForegroundAppOrServiceImportance(importance);
+                for (UwbSession uwbSession : uwbSessions) {
+                    // already at correct state.
+                    if (newModeHasNonPrivilegedFgAppOrService
+                            == uwbSession.hasNonPrivilegedFgAppOrService()) {
+                        continue;
+                    }
+                    uwbSession.setHasNonPrivilegedFgAppOrService(
+                            newModeHasNonPrivilegedFgAppOrService);
+                    int sessionId = uwbSession.getSessionId();
+                    Log.i(TAG, "App state change for session " + sessionId + ". IsFg: "
+                            + newModeHasNonPrivilegedFgAppOrService);
+                    // Reconfigure the session based on the new fg/bg state
                     Log.i(TAG, "Session " + sessionId
-                            + " recalculating session priority, new priority: "
-                            + newSessionPriority);
-                    uwbSession.setStackSessionPriority(newSessionPriority);
+                            + " reconfiguring ntf control due to app state change");
+                    uwbSession.reconfigureFiraSessionOnFgStateChange();
+                    // Recalculate session priority based on the new fg/bg state.
+                    if (!uwbSession.mSessionPriorityOverride) {
+                        int newSessionPriority = uwbSession.calculateSessionPriority();
+                        Log.i(TAG, "Session " + sessionId
+                                + " recalculating session priority, new priority: "
+                                + newSessionPriority);
+                        uwbSession.setStackSessionPriority(newSessionPriority);
+                    }
                 }
             }
         });
@@ -503,6 +505,10 @@ public class UwbSessionManager implements INativeUwbManager.SessionNotification,
             Log.d(TAG, "onMulticastListUpdateNotificationReceived - invalid session");
             return;
         }
+        if (uwbSession.getOperationType() != SESSION_RECONFIG_RANGING) {
+            Log.d(TAG, "onMulticastListUpdateNotificationReceived - ignore spurious update");
+            return;
+        } 
         uwbSession.setMulticastListUpdateStatus(multicastListUpdateStatus);
         synchronized (uwbSession.getWaitObj()) {
             uwbSession.getWaitObj().blockingNotify();
@@ -1688,7 +1694,10 @@ public class UwbSessionManager implements INativeUwbManager.SessionNotification,
     }
 
     void addToNonPrivilegedUidToFiraSessionTableIfNecessary(@NonNull UwbSession uwbSession) {
-        if (uwbSession.getSessionType() == UwbUciConstants.SESSION_TYPE_RANGING) {
+        if (uwbSession.getSessionType() != UwbUciConstants.SESSION_TYPE_RANGING) {
+            return;
+        }
+        synchronized (mNonPrivilegedUidToFiraSessionsTable) {
             AttributionSource nonPrivilegedAppAttrSource =
                     uwbSession.getAnyNonPrivilegedAppInAttributionSource();
             if (nonPrivilegedAppAttrSource != null) {
@@ -1702,24 +1711,28 @@ public class UwbSessionManager implements INativeUwbManager.SessionNotification,
     }
 
     void removeFromNonPrivilegedUidToFiraSessionTableIfNecessary(@NonNull UwbSession uwbSession) {
-        if (uwbSession.getSessionType() == UwbUciConstants.SESSION_TYPE_RANGING) {
-            AttributionSource nonPrivilegedAppAttrSource =
-                    uwbSession.getAnyNonPrivilegedAppInAttributionSource();
-            if (nonPrivilegedAppAttrSource != null) {
-                Log.d(TAG, "Detected end of non privileged FIRA session from "
-                        + nonPrivilegedAppAttrSource);
-                List<UwbSession> sessions = mNonPrivilegedUidToFiraSessionsTable.get(
+        if (uwbSession.getSessionType() != UwbUciConstants.SESSION_TYPE_RANGING) {
+            return;
+        }
+        AttributionSource nonPrivilegedAppAttrSource =
+                uwbSession.getAnyNonPrivilegedAppInAttributionSource();
+        if (nonPrivilegedAppAttrSource == null) {
+            return;
+        }
+        Log.d(TAG, "Detected end of non privileged FIRA session from "
+                + nonPrivilegedAppAttrSource);
+        synchronized (mNonPrivilegedUidToFiraSessionsTable) {
+            List<UwbSession> sessions = mNonPrivilegedUidToFiraSessionsTable.get(
+                    nonPrivilegedAppAttrSource.getUid());
+            if (sessions == null) {
+                Log.wtf(TAG, "No sessions found for uid: "
+                        + nonPrivilegedAppAttrSource.getUid());
+                return;
+            }
+            sessions.remove(uwbSession);
+            if (sessions.isEmpty()) {
+                mNonPrivilegedUidToFiraSessionsTable.remove(
                         nonPrivilegedAppAttrSource.getUid());
-                if (sessions == null) {
-                    Log.wtf(TAG, "No sessions found for uid: "
-                            + nonPrivilegedAppAttrSource.getUid());
-                    return;
-                }
-                sessions.remove(uwbSession);
-                if (sessions.isEmpty()) {
-                    mNonPrivilegedUidToFiraSessionsTable.remove(
-                            nonPrivilegedAppAttrSource.getUid());
-                }
             }
         }
     }
@@ -2144,6 +2157,36 @@ public class UwbSessionManager implements INativeUwbManager.SessionNotification,
             }
         }
 
+        private int updateAddRemoveCallbacks(UwbSession uwbSession,
+                UwbMulticastListUpdateStatus multicastList, Integer action) {
+            int actionStatus = UwbUciConstants.STATUS_CODE_OK;
+            for (int i = 0; i < multicastList.getNumOfControlee(); i++) {
+                actionStatus = multicastList.getStatus()[i];
+                if (actionStatus == UwbUciConstants.STATUS_CODE_OK) {
+                    if (isMulticastActionAdd(action)) {
+                        uwbSession.addControlee(
+                                multicastList.getControleeUwbAddresses()[i]);
+                        mSessionNotificationManager.onControleeAdded(
+                                uwbSession);
+                    } else if (action == MULTICAST_LIST_UPDATE_ACTION_DELETE) {
+                        uwbSession.removeControlee(
+                                multicastList.getControleeUwbAddresses()[i]);
+                        mSessionNotificationManager.onControleeRemoved(
+                                uwbSession);
+                    }
+                } else {
+                    if (isMulticastActionAdd(action)) {
+                        mSessionNotificationManager.onControleeAddFailed(
+                                uwbSession, actionStatus);
+                    } else if (action == MULTICAST_LIST_UPDATE_ACTION_DELETE) {
+                        mSessionNotificationManager.onControleeRemoveFailed(
+                                uwbSession, actionStatus);
+                    }
+                }
+            }
+            return actionStatus;
+        }
+
         private void handleReconfigure(UwbSession uwbSession, @Nullable Params param,
                 boolean triggeredByFgStateChange) {
             if (!(param instanceof FiraRangingReconfigureParams
@@ -2157,7 +2200,7 @@ public class UwbSessionManager implements INativeUwbManager.SessionNotification,
 
             final FiraRangingReconfigureParams rangingReconfigureParams =
                     (param instanceof FiraRangingReconfigureParams)
-                        ? (FiraRangingReconfigureParams) param : null;
+                            ? (FiraRangingReconfigureParams) param : null;
             // TODO(b/211445008): Consolidate to a single uwb thread.
             FutureTask<Integer> cmdTask = new FutureTask<>(
                     () -> {
@@ -2171,6 +2214,7 @@ public class UwbSessionManager implements INativeUwbManager.SessionNotification,
                                 addrList = rangingReconfigureParams.getAddressList();
                                 action = rangingReconfigureParams.getAction();
                             }
+                            uwbSession.setOperationType(SESSION_RECONFIG_RANGING);
                             // Action will indicate if this is a controlee add/remove.
                             //  if null, it's a session configuration change.
                             if (action != null) {
@@ -2197,7 +2241,8 @@ public class UwbSessionManager implements INativeUwbManager.SessionNotification,
                                         == P_STS_MULTICAST_LIST_UPDATE_ACTION_ADD_16_BYTE
                                         || action
                                         == P_STS_MULTICAST_LIST_UPDATE_ACTION_ADD_32_BYTE;
-                                status = mNativeUwbManager.controllerMulticastListUpdate(
+                                UwbMulticastListUpdateStatus multicastListUpdateStatus =
+                                        mNativeUwbManager.controllerMulticastListUpdate(
                                         uwbSession.getSessionId(),
                                         action,
                                         subSessionIdList.length,
@@ -2206,53 +2251,78 @@ public class UwbSessionManager implements INativeUwbManager.SessionNotification,
                                         isV2 ? rangingReconfigureParams
                                                 .getSubSessionKeyList() : null,
                                         uwbSession.getChipId());
+                                status = (multicastListUpdateStatus.getNumOfControlee() == 0)
+                                        ? UwbUciConstants.STATUS_CODE_OK :
+                                        UwbUciConstants.STATUS_CODE_FAILED;
                                 if (status != UwbUciConstants.STATUS_CODE_OK) {
                                     Log.e(TAG, "Unable to update controller multicast list.");
-                                    if (isMulticastActionAdd(action)) {
-                                        mSessionNotificationManager.onControleeAddFailed(
-                                                uwbSession, status);
-                                    } else if (action == MULTICAST_LIST_UPDATE_ACTION_DELETE) {
-                                        mSessionNotificationManager.onControleeRemoveFailed(
-                                                uwbSession, status);
+                                    int i = 0;
+                                    UwbAddress[] addresses =
+                                       multicastListUpdateStatus.getControleeUwbAddresses();
+                                    for (int st : multicastListUpdateStatus.getStatus()) {
+                                        if (st == UwbUciConstants.STATUS_CODE_OK) {
+                                            if (isMulticastActionAdd(action)) {
+                                                uwbSession.addControlee(addresses[i]);
+                                                mSessionNotificationManager.onControleeAdded(
+                                                          uwbSession);
+                                            } else if (action
+                                                    == MULTICAST_LIST_UPDATE_ACTION_DELETE) {
+                                                uwbSession.removeControlee(addresses[i]);
+                                                mSessionNotificationManager.onControleeRemoved(
+                                                          uwbSession);
+                                            }
+                                        } else {
+                                            if (isMulticastActionAdd(action)) {
+                                                mSessionNotificationManager.onControleeAddFailed(
+                                                          uwbSession, st);
+                                            } else if (action
+                                                    == MULTICAST_LIST_UPDATE_ACTION_DELETE) {
+                                                mSessionNotificationManager.onControleeRemoveFailed(
+                                                          uwbSession, st);
+                                            }
+                                        }
+                                        i++;
                                     }
                                     return status;
                                 }
-
-                                uwbSession.getWaitObj().blockingWait();
-
-                                UwbMulticastListUpdateStatus multicastList =
-                                        uwbSession.getMulticastListUpdateStatus();
-
-                                if (multicastList == null) {
-                                    Log.e(TAG, "Confirmed controller multicast list is empty!");
-                                    return status;
-                                }
-
-                                for (int i = 0; i < multicastList.getNumOfControlee(); i++) {
-                                    int actionStatus = multicastList.getStatus()[i];
-                                    if (actionStatus == UwbUciConstants.STATUS_CODE_OK) {
-                                        if (isMulticastActionAdd(action)) {
-                                            uwbSession.addControlee(
-                                                    multicastList.getControleeUwbAddresses()[i]);
+                                //Fira 2.0
+                                if (getUwbsFiraProtocolVersion(
+                                        uwbSession.getChipId()).getMajor() == 2) {
+                                    if (isMulticastActionAdd(action)) {
+                                        for (UwbAddress address : addrList) {
+                                            Log.i(TAG, "address: " + address + " added");
+                                            uwbSession.addControlee(address);
                                             mSessionNotificationManager.onControleeAdded(
                                                     uwbSession);
-                                        } else if (action == MULTICAST_LIST_UPDATE_ACTION_DELETE) {
-                                            uwbSession.removeControlee(
-                                                    multicastList.getControleeUwbAddresses()[i]);
-                                            mSessionNotificationManager.onControleeRemoved(
-                                                    uwbSession);
                                         }
-                                    }
-                                    else {
-                                        status = actionStatus;
-                                        if (isMulticastActionAdd(action)) {
-                                            mSessionNotificationManager.onControleeAddFailed(
-                                                    uwbSession, actionStatus);
-                                        } else if (action == MULTICAST_LIST_UPDATE_ACTION_DELETE) {
-                                            mSessionNotificationManager.onControleeRemoveFailed(
-                                                    uwbSession, actionStatus);
+                                    } else {
+                                        //wait for NTF for delete op only
+                                        uwbSession.getWaitObj().blockingWait();
+
+                                        UwbMulticastListUpdateStatus multicastList =
+                                                uwbSession.getMulticastListUpdateStatus();
+
+                                        if (multicastList == null) {
+                                            Log.e(TAG, "controller multicast list is empty!");
+                                            return status;
                                         }
+                                        status = updateAddRemoveCallbacks(
+                                                uwbSession, multicastList, action);
                                     }
+                                } else {
+                                    //Fira 1.1
+                                    uwbSession.getWaitObj().blockingWait();
+
+                                    UwbMulticastListUpdateStatus multicastList =
+                                            uwbSession.getMulticastListUpdateStatus();
+
+                                    if (multicastList == null) {
+                                        Log.e(TAG, "Confirmed controller multicast list is "
+                                                + "empty!");
+                                        return status;
+                                    }
+                                    status = updateAddRemoveCallbacks(
+                                            uwbSession, multicastList, action);
                                 }
                             } else {
                                 // setAppConfigurations only applies to config changes,
@@ -2260,12 +2330,13 @@ public class UwbSessionManager implements INativeUwbManager.SessionNotification,
                                 status = mConfigurationManager.setAppConfigurations(
                                         uwbSession.getSessionId(), param, uwbSession.getChipId(),
                                         getUwbsFiraProtocolVersion(uwbSession.getChipId()));
-                                // send suspendRangingCallbacks only on suspend ranging reconfigure
-                                Integer suspendRangingRounds =
-                                    rangingReconfigureParams.getSuspendRangingRounds();
+                                    // send suspendRangingCallbacks only on suspend ranging
+                                    // reconfigure
+                                Integer suspendRangingRounds = rangingReconfigureParams
+                                        .getSuspendRangingRounds();
                                 if (suspendRangingRounds != null) {
                                     suspendRangingCallbacks(suspendRangingRounds, status,
-                                        uwbSession);
+                                            uwbSession);
                                 }
                             }
                             if (status == UwbUciConstants.STATUS_CODE_OK) {
@@ -2737,7 +2808,7 @@ public class UwbSessionManager implements INativeUwbManager.SessionNotification,
          * Gets the list of controlees active under this session.
          */
         public List<UwbControlee> getControleeList() {
-            return Collections.unmodifiableList(mControlees.values().stream().toList());
+            return new ArrayList<>(mControlees.values());
         }
 
         /**
@@ -2745,7 +2816,7 @@ public class UwbSessionManager implements INativeUwbManager.SessionNotification,
          * @return The list of controlee addresses that have active ranging error streak timers.
          */
         public List<UwbAddress> getControleesWithOngoingRangingErrorStreak() {
-            return mMulticastRangingErrorStreakTimerListeners.keySet().stream().toList();
+            return new ArrayList<>(mMulticastRangingErrorStreakTimerListeners.keySet());
         }
 
         /**

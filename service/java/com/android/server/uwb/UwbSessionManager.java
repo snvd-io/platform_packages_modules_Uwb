@@ -505,10 +505,6 @@ public class UwbSessionManager implements INativeUwbManager.SessionNotification,
             Log.d(TAG, "onMulticastListUpdateNotificationReceived - invalid session");
             return;
         }
-        if (uwbSession.getOperationType() != SESSION_RECONFIG_RANGING) {
-            Log.d(TAG, "onMulticastListUpdateNotificationReceived - ignore spurious update");
-            return;
-        } 
         uwbSession.setMulticastListUpdateStatus(multicastListUpdateStatus);
         synchronized (uwbSession.getWaitObj()) {
             uwbSession.getWaitObj().blockingNotify();

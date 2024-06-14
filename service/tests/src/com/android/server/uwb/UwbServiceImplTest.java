@@ -64,7 +64,6 @@ import android.platform.test.annotations.RequiresFlagsEnabled;
 import android.platform.test.flag.junit.CheckFlagsRule;
 import android.platform.test.flag.junit.DeviceFlagsValueProvider;
 import android.provider.Settings;
-import android.test.suitebuilder.annotation.SmallTest;
 import android.uwb.IOnUwbActivityEnergyInfoListener;
 import android.uwb.IUwbAdapterStateCallbacks;
 import android.uwb.IUwbAdfProvisionStateCallbacks;
@@ -73,6 +72,7 @@ import android.uwb.IUwbVendorUciCallback;
 import android.uwb.SessionHandle;
 import android.uwb.UwbAddress;
 
+import androidx.test.filters.SmallTest;
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.modules.utils.build.SdkLevel;

@@ -41,11 +41,11 @@ import android.os.Handler;
 import android.os.RemoteException;
 import android.os.test.TestLooper;
 import android.platform.test.annotations.Presubmit;
-import android.test.suitebuilder.annotation.SmallTest;
 import android.uwb.IUwbRangingCallbacks;
 import android.uwb.SessionHandle;
 import android.uwb.UwbAddress;
 
+import androidx.test.filters.SmallTest;
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.server.uwb.UwbInjector;

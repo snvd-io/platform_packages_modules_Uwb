@@ -79,6 +79,9 @@ java_library {
     static_libs: [
         "com.uwb.support.base",
     ],
+    lint: {
+        baseline_filename: "lint-baseline.xml",
+    },
 }
 
 java_library {
@@ -125,6 +128,9 @@ java_library {
     static_libs: [
         "com.uwb.support.base",
     ],
+    lint: {
+        baseline_filename: "lint-baseline2.xml",
+    },
 }
 
 java_library {

@@ -56,8 +56,8 @@ import static org.junit.Assert.assertFalse;
 import static org.mockito.Mockito.when;
 
 import android.platform.test.annotations.Presubmit;
-import android.test.suitebuilder.annotation.SmallTest;
 
+import androidx.test.filters.SmallTest;
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.server.uwb.UwbInjector;

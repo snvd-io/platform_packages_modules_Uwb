@@ -27,8 +27,8 @@ import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.os.BugreportManager;
 import android.platform.test.annotations.Presubmit;
-import android.test.suitebuilder.annotation.SmallTest;
 
+import androidx.test.filters.SmallTest;
 import androidx.test.runner.AndroidJUnit4;
 
 import org.junit.Before;

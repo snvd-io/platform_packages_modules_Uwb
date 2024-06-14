@@ -20,8 +20,7 @@ import static com.google.uwb.support.fira.FiraParams.PACS_PROFILE_SERVICE_ID;
 
 import static org.junit.Assert.assertEquals;
 
-import android.test.suitebuilder.annotation.SmallTest;
-
+import androidx.test.filters.SmallTest;
 import androidx.test.runner.AndroidJUnit4;
 
 import com.google.uwb.support.profile.ServiceProfile;

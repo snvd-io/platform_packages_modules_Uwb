@@ -99,11 +99,11 @@ import com.google.uwb.support.ccc.CccSpecificationParams;
 import com.google.uwb.support.ccc.CccStartRangingParams;
 import com.google.uwb.support.dltdoa.DlTDoARangingRoundsUpdate;
 import com.google.uwb.support.dltdoa.DlTDoARangingRoundsUpdateStatus;
-import com.google.uwb.support.fira.FiraControleeParams;
 import com.google.uwb.support.fira.FiraDataTransferPhaseConfig;
 import com.google.uwb.support.fira.FiraDataTransferPhaseConfig.FiraDataTransferPhaseManagementList;
 import com.google.uwb.support.fira.FiraHybridSessionControleeConfig;
 import com.google.uwb.support.fira.FiraHybridSessionControllerConfig;
+import com.google.uwb.support.fira.FiraOnControleeRemovedParams;
 import com.google.uwb.support.fira.FiraOpenSessionParams;
 import com.google.uwb.support.fira.FiraParams;
 import com.google.uwb.support.fira.FiraPoseUpdateParams;
@@ -122,7 +122,6 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -217,32 +216,35 @@ public class UwbSessionManager implements INativeUwbManager.SessionNotification,
     public void onUidImportance(final int uid, final int importance) {
         Handler handler = new Handler(mLooper);
         handler.post(() -> {
-            List<UwbSession> uwbSessions = mNonPrivilegedUidToFiraSessionsTable.get(uid);
-            // Not a uid in the watch list
-            if (uwbSessions == null) return;
-            boolean newModeHasNonPrivilegedFgAppOrService =
-                    UwbInjector.isForegroundAppOrServiceImportance(importance);
-            for (UwbSession uwbSession : uwbSessions) {
-                // already at correct state.
-                if (newModeHasNonPrivilegedFgAppOrService
-                        == uwbSession.hasNonPrivilegedFgAppOrService()) {
-                    continue;
-                }
-                uwbSession.setHasNonPrivilegedFgAppOrService(newModeHasNonPrivilegedFgAppOrService);
-                int sessionId = uwbSession.getSessionId();
-                Log.i(TAG, "App state change for session " + sessionId + ". IsFg: "
-                        + newModeHasNonPrivilegedFgAppOrService);
-                // Reconfigure the session based on the new fg/bg state
-                Log.i(TAG, "Session " + sessionId
-                        + " reconfiguring ntf control due to app state change");
-                uwbSession.reconfigureFiraSessionOnFgStateChange();
-                // Recalculate session priority based on the new fg/bg state.
-                if (!uwbSession.mSessionPriorityOverride) {
-                    int newSessionPriority = uwbSession.calculateSessionPriority();
+            synchronized (mNonPrivilegedUidToFiraSessionsTable) {
+                List<UwbSession> uwbSessions = mNonPrivilegedUidToFiraSessionsTable.get(uid);
+                // Not a uid in the watch list
+                if (uwbSessions == null) return;
+                boolean newModeHasNonPrivilegedFgAppOrService =
+                        UwbInjector.isForegroundAppOrServiceImportance(importance);
+                for (UwbSession uwbSession : uwbSessions) {
+                    // already at correct state.
+                    if (newModeHasNonPrivilegedFgAppOrService
+                            == uwbSession.hasNonPrivilegedFgAppOrService()) {
+                        continue;
+                    }
+                    uwbSession.setHasNonPrivilegedFgAppOrService(
+                            newModeHasNonPrivilegedFgAppOrService);
+                    int sessionId = uwbSession.getSessionId();
+                    Log.i(TAG, "App state change for session " + sessionId + ". IsFg: "
+                            + newModeHasNonPrivilegedFgAppOrService);
+                    // Reconfigure the session based on the new fg/bg state
                     Log.i(TAG, "Session " + sessionId
-                            + " recalculating session priority, new priority: "
-                            + newSessionPriority);
-                    uwbSession.setStackSessionPriority(newSessionPriority);
+                            + " reconfiguring ntf control due to app state change");
+                    uwbSession.reconfigureFiraSessionOnFgStateChange();
+                    // Recalculate session priority based on the new fg/bg state.
+                    if (!uwbSession.mSessionPriorityOverride) {
+                        int newSessionPriority = uwbSession.calculateSessionPriority();
+                        Log.i(TAG, "Session " + sessionId
+                                + " recalculating session priority, new priority: "
+                                + newSessionPriority);
+                        uwbSession.setStackSessionPriority(newSessionPriority);
+                    }
                 }
             }
         });
@@ -1152,7 +1154,7 @@ public class UwbSessionManager implements INativeUwbManager.SessionNotification,
     }
 
     private synchronized int reconfigureInternal(SessionHandle sessionHandle,
-            @Nullable Params params, boolean triggeredByFgStateChange) {
+            @Nullable Params params, Reconfiguration.Reason reason) {
         int status = UwbUciConstants.STATUS_CODE_ERROR_SESSION_NOT_EXIST;
         if (!isExistedSession(sessionHandle)) {
             Log.i(TAG, "Not initialized session ID");
@@ -1179,7 +1181,7 @@ public class UwbSessionManager implements INativeUwbManager.SessionNotification,
                 return UwbUciConstants.STATUS_CODE_REJECTED;
             }
             // Do not update mParams if this was triggered by framework.
-            if (!triggeredByFgStateChange) {
+            if (reason != Reconfiguration.Reason.FG_STATE_CHANGE) {
                 uwbSession.updateFiraParamsOnReconfigure(rangingReconfigureParams);
             }
         } else if (uwbSession.getProtocolName().equals(CccParams.PROTOCOL_NAME)
@@ -1187,17 +1189,17 @@ public class UwbSessionManager implements INativeUwbManager.SessionNotification,
             CccRangingReconfiguredParams rangingReconfigureParams =
                     (CccRangingReconfiguredParams) params;
             // Do not update mParams if this was triggered by framework.
-            if (!triggeredByFgStateChange) {
+            if (reason != Reconfiguration.Reason.FG_STATE_CHANGE) {
                 uwbSession.updateCccParamsOnReconfigure(rangingReconfigureParams);
             }
         }
         mEventTask.execute(SESSION_RECONFIG_RANGING,
-                new ReconfigureEventParams(uwbSession, params, triggeredByFgStateChange));
+                new Reconfiguration(uwbSession, params, reason));
         return 0;
     }
 
     public synchronized int reconfigure(SessionHandle sessionHandle, @Nullable Params params) {
-        return reconfigureInternal(sessionHandle, params, false /* triggeredByFgStateChange */);
+        return reconfigureInternal(sessionHandle, params, Reconfiguration.Reason.REQUESTED_BY_API);
     }
 
     /** Send the payload data to a remote device in the UWB session */
@@ -1688,7 +1690,10 @@ public class UwbSessionManager implements INativeUwbManager.SessionNotification,
     }
 
     void addToNonPrivilegedUidToFiraSessionTableIfNecessary(@NonNull UwbSession uwbSession) {
-        if (uwbSession.getSessionType() == UwbUciConstants.SESSION_TYPE_RANGING) {
+        if (uwbSession.getSessionType() != UwbUciConstants.SESSION_TYPE_RANGING) {
+            return;
+        }
+        synchronized (mNonPrivilegedUidToFiraSessionsTable) {
             AttributionSource nonPrivilegedAppAttrSource =
                     uwbSession.getAnyNonPrivilegedAppInAttributionSource();
             if (nonPrivilegedAppAttrSource != null) {
@@ -1702,39 +1707,67 @@ public class UwbSessionManager implements INativeUwbManager.SessionNotification,
     }
 
     void removeFromNonPrivilegedUidToFiraSessionTableIfNecessary(@NonNull UwbSession uwbSession) {
-        if (uwbSession.getSessionType() == UwbUciConstants.SESSION_TYPE_RANGING) {
-            AttributionSource nonPrivilegedAppAttrSource =
-                    uwbSession.getAnyNonPrivilegedAppInAttributionSource();
-            if (nonPrivilegedAppAttrSource != null) {
-                Log.d(TAG, "Detected end of non privileged FIRA session from "
-                        + nonPrivilegedAppAttrSource);
-                List<UwbSession> sessions = mNonPrivilegedUidToFiraSessionsTable.get(
+        if (uwbSession.getSessionType() != UwbUciConstants.SESSION_TYPE_RANGING) {
+            return;
+        }
+        AttributionSource nonPrivilegedAppAttrSource =
+                uwbSession.getAnyNonPrivilegedAppInAttributionSource();
+        if (nonPrivilegedAppAttrSource == null) {
+            return;
+        }
+        Log.d(TAG, "Detected end of non privileged FIRA session from "
+                + nonPrivilegedAppAttrSource);
+        synchronized (mNonPrivilegedUidToFiraSessionsTable) {
+            List<UwbSession> sessions = mNonPrivilegedUidToFiraSessionsTable.get(
+                    nonPrivilegedAppAttrSource.getUid());
+            if (sessions == null) {
+                Log.wtf(TAG, "No sessions found for uid: "
+                        + nonPrivilegedAppAttrSource.getUid());
+                return;
+            }
+            sessions.remove(uwbSession);
+            if (sessions.isEmpty()) {
+                mNonPrivilegedUidToFiraSessionsTable.remove(
                         nonPrivilegedAppAttrSource.getUid());
-                if (sessions == null) {
-                    Log.wtf(TAG, "No sessions found for uid: "
-                            + nonPrivilegedAppAttrSource.getUid());
-                    return;
-                }
-                sessions.remove(uwbSession);
-                if (sessions.isEmpty()) {
-                    mNonPrivilegedUidToFiraSessionsTable.remove(
-                            nonPrivilegedAppAttrSource.getUid());
-                }
             }
         }
     }
 
-    private static class ReconfigureEventParams {
-        public final UwbSession uwbSession;
-        public final Params params;
-        public final boolean triggeredByFgStateChange;
+    private static class Reconfiguration {
+        public final UwbSession mUwbSession;
+        public final Params mParams;
+        public final Reason mReason;
 
-        ReconfigureEventParams(UwbSession uwbSession, Params params,
-                boolean triggeredByFgStateChange) {
-            this.uwbSession = uwbSession;
-            this.params = params;
-            this.triggeredByFgStateChange = triggeredByFgStateChange;
+        /**
+         * Reason for the reconfiguration. If mParams is an instance of {@link
+         * FiraRangingReconfigureParams}, the reason can be interpreted as an action-specific
+         * reason code.
+         */
+        public enum Reason {
+            UNKNOWN, LOST_CONNECTION, REQUESTED_BY_API, FG_STATE_CHANGE;
+
+            /**
+             * Use this for {@link FiraParams.MULTICAST_LIST_UPDATE_ACTION_DELETE} actions.
+             * @return the reason for controlee removal.
+             */
+            public @FiraOnControleeRemovedParams.Reason int asControleeRemovedReason() {
+                switch (this) {
+                    case LOST_CONNECTION:
+                        return FiraOnControleeRemovedParams.Reason.LOST_CONNECTION;
+                    case REQUESTED_BY_API:
+                        return FiraOnControleeRemovedParams.Reason.REQUESTED_BY_API;
+                    default:
+                        return FiraOnControleeRemovedParams.Reason.UNKNOWN;
+                }
+            }
         }
+
+        Reconfiguration(UwbSession uwbSession, Params params, Reason reason) {
+            mUwbSession = uwbSession;
+            mParams = params;
+            mReason = reason;
+        }
+
     }
 
     private class EventTask extends Handler {
@@ -1768,9 +1801,9 @@ public class UwbSessionManager implements INativeUwbManager.SessionNotification,
 
                 case SESSION_RECONFIG_RANGING: {
                     Log.d(TAG, "SESSION_RECONFIG_RANGING");
-                    ReconfigureEventParams params = (ReconfigureEventParams) msg.obj;
-                    handleReconfigure(
-                            params.uwbSession, params.params, params.triggeredByFgStateChange);
+                    Reconfiguration reconfiguration = (Reconfiguration) msg.obj;
+                    handleReconfigure(reconfiguration.mUwbSession, reconfiguration.mParams,
+                            reconfiguration.mReason);
                     break;
                 }
 
@@ -2144,8 +2177,39 @@ public class UwbSessionManager implements INativeUwbManager.SessionNotification,
             }
         }
 
+        private int updateAddRemoveCallbacks(UwbSession uwbSession,
+                UwbMulticastListUpdateStatus multicastList, Integer action,
+                Reconfiguration.Reason reason) {
+            int actionStatus = UwbUciConstants.STATUS_CODE_OK;
+            for (int i = 0; i < multicastList.getNumOfControlee(); i++) {
+                actionStatus = multicastList.getStatus()[i];
+                if (actionStatus == UwbUciConstants.STATUS_CODE_OK) {
+                    if (isMulticastActionAdd(action)) {
+                        uwbSession.addControlee(
+                                multicastList.getControleeUwbAddresses()[i]);
+                        mSessionNotificationManager.onControleeAdded(
+                                uwbSession);
+                    } else if (action == MULTICAST_LIST_UPDATE_ACTION_DELETE) {
+                        final UwbAddress address = multicastList.getControleeUwbAddresses()[i];
+                        uwbSession.removeControlee(address);
+                        mSessionNotificationManager.onControleeRemoved(uwbSession, address,
+                                reason.asControleeRemovedReason());
+                    }
+                } else {
+                    if (isMulticastActionAdd(action)) {
+                        mSessionNotificationManager.onControleeAddFailed(
+                                uwbSession, actionStatus);
+                    } else if (action == MULTICAST_LIST_UPDATE_ACTION_DELETE) {
+                        mSessionNotificationManager.onControleeRemoveFailed(
+                                uwbSession, actionStatus);
+                    }
+                }
+            }
+            return actionStatus;
+        }
+
         private void handleReconfigure(UwbSession uwbSession, @Nullable Params param,
-                boolean triggeredByFgStateChange) {
+                Reconfiguration.Reason reason) {
             if (!(param instanceof FiraRangingReconfigureParams
                     || param instanceof CccRangingReconfiguredParams)) {
                 Log.e(TAG, "Invalid reconfigure params: " + param);
@@ -2157,7 +2221,7 @@ public class UwbSessionManager implements INativeUwbManager.SessionNotification,
 
             final FiraRangingReconfigureParams rangingReconfigureParams =
                     (param instanceof FiraRangingReconfigureParams)
-                        ? (FiraRangingReconfigureParams) param : null;
+                            ? (FiraRangingReconfigureParams) param : null;
             // TODO(b/211445008): Consolidate to a single uwb thread.
             FutureTask<Integer> cmdTask = new FutureTask<>(
                     () -> {
@@ -2171,6 +2235,7 @@ public class UwbSessionManager implements INativeUwbManager.SessionNotification,
                                 addrList = rangingReconfigureParams.getAddressList();
                                 action = rangingReconfigureParams.getAction();
                             }
+                            uwbSession.setOperationType(SESSION_RECONFIG_RANGING);
                             // Action will indicate if this is a controlee add/remove.
                             //  if null, it's a session configuration change.
                             if (action != null) {
@@ -2197,7 +2262,8 @@ public class UwbSessionManager implements INativeUwbManager.SessionNotification,
                                         == P_STS_MULTICAST_LIST_UPDATE_ACTION_ADD_16_BYTE
                                         || action
                                         == P_STS_MULTICAST_LIST_UPDATE_ACTION_ADD_32_BYTE;
-                                status = mNativeUwbManager.controllerMulticastListUpdate(
+                                UwbMulticastListUpdateStatus multicastListUpdateStatus =
+                                        mNativeUwbManager.controllerMulticastListUpdate(
                                         uwbSession.getSessionId(),
                                         action,
                                         subSessionIdList.length,
@@ -2206,53 +2272,79 @@ public class UwbSessionManager implements INativeUwbManager.SessionNotification,
                                         isV2 ? rangingReconfigureParams
                                                 .getSubSessionKeyList() : null,
                                         uwbSession.getChipId());
+                                status = (multicastListUpdateStatus.getNumOfControlee() == 0)
+                                        ? UwbUciConstants.STATUS_CODE_OK :
+                                        UwbUciConstants.STATUS_CODE_FAILED;
                                 if (status != UwbUciConstants.STATUS_CODE_OK) {
                                     Log.e(TAG, "Unable to update controller multicast list.");
-                                    if (isMulticastActionAdd(action)) {
-                                        mSessionNotificationManager.onControleeAddFailed(
-                                                uwbSession, status);
-                                    } else if (action == MULTICAST_LIST_UPDATE_ACTION_DELETE) {
-                                        mSessionNotificationManager.onControleeRemoveFailed(
-                                                uwbSession, status);
+                                    int i = 0;
+                                    UwbAddress[] addresses =
+                                       multicastListUpdateStatus.getControleeUwbAddresses();
+                                    for (int st : multicastListUpdateStatus.getStatus()) {
+                                        if (st == UwbUciConstants.STATUS_CODE_OK) {
+                                            if (isMulticastActionAdd(action)) {
+                                                uwbSession.addControlee(addresses[i]);
+                                                mSessionNotificationManager.onControleeAdded(
+                                                          uwbSession);
+                                            } else if (action
+                                                    == MULTICAST_LIST_UPDATE_ACTION_DELETE) {
+                                                uwbSession.removeControlee(addresses[i]);
+                                                mSessionNotificationManager.onControleeRemoved(
+                                                        uwbSession, addresses[i],
+                                                        reason.asControleeRemovedReason());
+                                            }
+                                        } else {
+                                            if (isMulticastActionAdd(action)) {
+                                                mSessionNotificationManager.onControleeAddFailed(
+                                                          uwbSession, st);
+                                            } else if (action
+                                                    == MULTICAST_LIST_UPDATE_ACTION_DELETE) {
+                                                mSessionNotificationManager.onControleeRemoveFailed(
+                                                          uwbSession, st);
+                                            }
+                                        }
+                                        i++;
                                     }
                                     return status;
                                 }
-
-                                uwbSession.getWaitObj().blockingWait();
-
-                                UwbMulticastListUpdateStatus multicastList =
-                                        uwbSession.getMulticastListUpdateStatus();
-
-                                if (multicastList == null) {
-                                    Log.e(TAG, "Confirmed controller multicast list is empty!");
-                                    return status;
-                                }
-
-                                for (int i = 0; i < multicastList.getNumOfControlee(); i++) {
-                                    int actionStatus = multicastList.getStatus()[i];
-                                    if (actionStatus == UwbUciConstants.STATUS_CODE_OK) {
-                                        if (isMulticastActionAdd(action)) {
-                                            uwbSession.addControlee(
-                                                    multicastList.getControleeUwbAddresses()[i]);
+                                //Fira 2.0
+                                if (getUwbsFiraProtocolVersion(
+                                        uwbSession.getChipId()).getMajor() == 2) {
+                                    if (isMulticastActionAdd(action)) {
+                                        for (UwbAddress address : addrList) {
+                                            Log.i(TAG, "address: " + address + " added");
+                                            uwbSession.addControlee(address);
                                             mSessionNotificationManager.onControleeAdded(
                                                     uwbSession);
-                                        } else if (action == MULTICAST_LIST_UPDATE_ACTION_DELETE) {
-                                            uwbSession.removeControlee(
-                                                    multicastList.getControleeUwbAddresses()[i]);
-                                            mSessionNotificationManager.onControleeRemoved(
-                                                    uwbSession);
                                         }
-                                    }
-                                    else {
-                                        status = actionStatus;
-                                        if (isMulticastActionAdd(action)) {
-                                            mSessionNotificationManager.onControleeAddFailed(
-                                                    uwbSession, actionStatus);
-                                        } else if (action == MULTICAST_LIST_UPDATE_ACTION_DELETE) {
-                                            mSessionNotificationManager.onControleeRemoveFailed(
-                                                    uwbSession, actionStatus);
+                                    } else {
+                                        //wait for NTF for delete op only
+                                        uwbSession.getWaitObj().blockingWait();
+
+                                        UwbMulticastListUpdateStatus multicastList =
+                                                uwbSession.getMulticastListUpdateStatus();
+
+                                        if (multicastList == null) {
+                                            Log.e(TAG, "controller multicast list is empty!");
+                                            return status;
                                         }
+                                        status = updateAddRemoveCallbacks(uwbSession, multicastList,
+                                                action, reason);
                                     }
+                                } else {
+                                    //Fira 1.1
+                                    uwbSession.getWaitObj().blockingWait();
+
+                                    UwbMulticastListUpdateStatus multicastList =
+                                            uwbSession.getMulticastListUpdateStatus();
+
+                                    if (multicastList == null) {
+                                        Log.e(TAG, "Confirmed controller multicast list is "
+                                                + "empty!");
+                                        return status;
+                                    }
+                                    status = updateAddRemoveCallbacks(uwbSession, multicastList,
+                                            action, reason);
                                 }
                             } else {
                                 // setAppConfigurations only applies to config changes,
@@ -2260,18 +2352,19 @@ public class UwbSessionManager implements INativeUwbManager.SessionNotification,
                                 status = mConfigurationManager.setAppConfigurations(
                                         uwbSession.getSessionId(), param, uwbSession.getChipId(),
                                         getUwbsFiraProtocolVersion(uwbSession.getChipId()));
-                                // send suspendRangingCallbacks only on suspend ranging reconfigure
-                                Integer suspendRangingRounds =
-                                    rangingReconfigureParams.getSuspendRangingRounds();
+                                    // send suspendRangingCallbacks only on suspend ranging
+                                    // reconfigure
+                                Integer suspendRangingRounds = rangingReconfigureParams
+                                        .getSuspendRangingRounds();
                                 if (suspendRangingRounds != null) {
                                     suspendRangingCallbacks(suspendRangingRounds, status,
-                                        uwbSession);
+                                            uwbSession);
                                 }
                             }
                             if (status == UwbUciConstants.STATUS_CODE_OK) {
                                 // only call this if all controlees succeeded otherwise the
                                 //  fail status cause a onRangingReconfigureFailed later.
-                                if (!triggeredByFgStateChange) {
+                                if (reason != Reconfiguration.Reason.FG_STATE_CHANGE) {
                                     mSessionNotificationManager.onRangingReconfigured(uwbSession);
                                 }
                             }
@@ -2292,7 +2385,7 @@ public class UwbSessionManager implements INativeUwbManager.SessionNotification,
             }
             if (status != UwbUciConstants.STATUS_CODE_OK) {
                 Log.i(TAG, "Failed to Reconfigure : " + status);
-                if (!triggeredByFgStateChange) {
+                if (reason != Reconfiguration.Reason.FG_STATE_CHANGE) {
                     mSessionNotificationManager.onRangingReconfigureFailed(uwbSession, status);
                 }
             }
@@ -2737,7 +2830,7 @@ public class UwbSessionManager implements INativeUwbManager.SessionNotification,
          * Gets the list of controlees active under this session.
          */
         public List<UwbControlee> getControleeList() {
-            return Collections.unmodifiableList(mControlees.values().stream().toList());
+            return new ArrayList<>(mControlees.values());
         }
 
         /**
@@ -2745,7 +2838,7 @@ public class UwbSessionManager implements INativeUwbManager.SessionNotification,
          * @return The list of controlee addresses that have active ranging error streak timers.
          */
         public List<UwbAddress> getControleesWithOngoingRangingErrorStreak() {
-            return mMulticastRangingErrorStreakTimerListeners.keySet().stream().toList();
+            return new ArrayList<>(mMulticastRangingErrorStreakTimerListeners.keySet());
         }
 
         /**
@@ -3323,6 +3416,16 @@ public class UwbSessionManager implements INativeUwbManager.SessionNotification,
             }
         }
 
+        private void removeControleeDueToErrorStreakTimeout(UwbAddress address) {
+            reconfigureInternal(mSessionHandle,
+                    new FiraRangingReconfigureParams.Builder()
+                            .setAction(MULTICAST_LIST_UPDATE_ACTION_DELETE)
+                            .setAddressList(new UwbAddress[] { address })
+                            .setSubSessionIdList(new int[] { 0 })
+                            .build(),
+                    Reconfiguration.Reason.LOST_CONNECTION);
+        }
+
         /**
          * Same as {@link UwbSession#startRangingResultErrorStreakTimerIfNotSet()}, except
          * starts multiple timers on a per-controlee basis for two-way ranging sessions. The
@@ -3350,14 +3453,7 @@ public class UwbSessionManager implements INativeUwbManager.SessionNotification,
                     Log.w(TAG, "No active controlees, stopping session");
                     stopRangingInternal(mSessionHandle, true /* triggeredBySystemPolicy */);
                 } else {
-                    mUwbInjector.getUwbServiceCore().removeControlee(mSessionHandle,
-                            new FiraControleeParams.Builder()
-                                    .setAction(MULTICAST_LIST_UPDATE_ACTION_DELETE)
-                                    .setAddressList(new UwbAddress[]{ address })
-                                    .setSubSessionIdList(new int[]{ 0 })
-                                    .build()
-                                    .toBundle()
-                    );
+                    removeControleeDueToErrorStreakTimeout(address);
                 }
             };
 
@@ -3440,8 +3536,8 @@ public class UwbSessionManager implements INativeUwbManager.SessionNotification,
                 builder.setRangeDataNtfConfig(FiraParams.RANGE_DATA_NTF_CONFIG_DISABLE);
             }
             FiraRangingReconfigureParams reconfigureParams = builder.build();
-            reconfigureInternal(
-                    mSessionHandle, reconfigureParams, true /* triggeredByFgStateChange */);
+            reconfigureInternal(mSessionHandle, reconfigureParams,
+                    Reconfiguration.Reason.FG_STATE_CHANGE);
 
             if (!mUwbInjector.getDeviceConfigFacade().isBackgroundRangingEnabled()) {
                 Log.d(TAG, "reconfigureFiraSessionOnFgStateChange - System policy disallows for "

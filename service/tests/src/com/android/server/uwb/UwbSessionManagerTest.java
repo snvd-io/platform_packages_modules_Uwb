@@ -916,6 +916,8 @@ public class UwbSessionManagerTest {
                 mock(UwbMulticastListUpdateStatus.class);
         UwbSession mockUwbSession = mock(UwbSession.class);
         when(mockUwbSession.getWaitObj()).thenReturn(mock(WaitObj.class));
+        when(mockUwbSession.getOperationType())
+                .thenReturn(UwbSessionManager.SESSION_RECONFIG_RANGING);
         doReturn(mockUwbSession)
                 .when(mUwbSessionManager).getUwbSession(anyInt());
 
@@ -4151,10 +4153,11 @@ public class UwbSessionManagerTest {
         UwbSession uwbSession = prepareExistingUwbSession();
         FiraRangingReconfigureParams reconfigureParams =
                 buildReconfigureParams();
+        UwbMulticastListUpdateStatus status = mock(UwbMulticastListUpdateStatus.class);
         when(mNativeUwbManager
                 .controllerMulticastListUpdate(anyInt(), anyInt(), anyInt(), any(), any(),
                         any(), anyString()))
-                .thenReturn((byte) UwbUciConstants.STATUS_CODE_OK);
+                .thenReturn(status);
         UwbMulticastListUpdateStatus uwbMulticastListUpdateStatus =
                 mock(UwbMulticastListUpdateStatus.class);
         when(uwbMulticastListUpdateStatus.getNumOfControlee()).thenReturn(1);
@@ -4206,10 +4209,12 @@ public class UwbSessionManagerTest {
         UwbSession uwbSession = prepareExistingUwbSession();
         FiraRangingReconfigureParams reconfigureParams =
                 buildReconfigureParams(FiraParams.MULTICAST_LIST_UPDATE_ACTION_DELETE);
+
+        UwbMulticastListUpdateStatus status = mock(UwbMulticastListUpdateStatus.class);
         when(mNativeUwbManager
                 .controllerMulticastListUpdate(anyInt(), anyInt(), anyInt(), any(), any(),
                         any(), anyString()))
-                .thenReturn((byte) UwbUciConstants.STATUS_CODE_OK);
+                .thenReturn(status);
         UwbMulticastListUpdateStatus uwbMulticastListUpdateStatus =
                 mock(UwbMulticastListUpdateStatus.class);
         when(uwbMulticastListUpdateStatus.getNumOfControlee()).thenReturn(1);
@@ -4240,7 +4245,8 @@ public class UwbSessionManagerTest {
                 uwbSession.getSessionId(), reconfigureParams.getAction(), 1,
                 dstAddress, reconfigureParams.getSubSessionIdList(), null,
                 uwbSession.getChipId());
-        verify(mUwbSessionNotificationManager).onControleeRemoved(eq(uwbSession));
+        verify(mUwbSessionNotificationManager).onControleeRemoved(eq(uwbSession),
+                eq(UWB_DEST_ADDRESS), anyInt());
         verify(mUwbSessionNotificationManager).onRangingReconfigured(eq(uwbSession));
     }
 
@@ -4268,10 +4274,11 @@ public class UwbSessionManagerTest {
         UwbSession uwbSession = prepareExistingUwbSession(firaParams);
         FiraRangingReconfigureParams reconfigureParams =
                 buildReconfigureParamsV2();
+        UwbMulticastListUpdateStatus status = mock(UwbMulticastListUpdateStatus.class);
         when(mNativeUwbManager
                 .controllerMulticastListUpdate(anyInt(), anyInt(), anyInt(), any(), any(),
                                 any(), anyString()))
-                .thenReturn((byte) UwbUciConstants.STATUS_CODE_OK);
+                .thenReturn(status);
         UwbMulticastListUpdateStatus uwbMulticastListUpdateStatus =
                 mock(UwbMulticastListUpdateStatus.class);
         when(uwbMulticastListUpdateStatus.getNumOfControlee()).thenReturn(1);
@@ -4317,10 +4324,11 @@ public class UwbSessionManagerTest {
         UwbSession uwbSession = prepareExistingUwbSession(firaParams);
         FiraRangingReconfigureParams reconfigureParams =
                 buildReconfigureParams(FiraParams.P_STS_MULTICAST_LIST_UPDATE_ACTION_ADD_16_BYTE);
+        UwbMulticastListUpdateStatus status = mock(UwbMulticastListUpdateStatus.class);
         when(mNativeUwbManager
                 .controllerMulticastListUpdate(anyInt(), anyInt(), anyInt(), any(), any(),
                                 any(), anyString()))
-                .thenReturn((byte) UwbUciConstants.STATUS_CODE_OK);
+                .thenReturn(status);
         UwbMulticastListUpdateStatus uwbMulticastListUpdateStatus =
                 mock(UwbMulticastListUpdateStatus.class);
         when(uwbMulticastListUpdateStatus.getNumOfControlee()).thenReturn(1);
@@ -4405,10 +4413,18 @@ public class UwbSessionManagerTest {
         UwbSession uwbSession = prepareExistingUwbSession(firaParams);
         FiraRangingReconfigureParams reconfigureParams =
                 buildReconfigureParamsV2();
+        //return status > 0 indicates failure
+        //TBD: update session and address from params
+        UwbMulticastListUpdateStatus status = mock(UwbMulticastListUpdateStatus.class);
+        when(status.getNumOfControlee()).thenReturn(1);
+        when(status.getControleeUwbAddresses()).thenReturn(
+                new UwbAddress[] { UWB_DEST_ADDRESS_2 });
+        when(status.getStatus()).thenReturn(
+                new int[] { UwbUciConstants.STATUS_CODE_FAILED });
         when(mNativeUwbManager
                 .controllerMulticastListUpdate(anyInt(), anyInt(), anyInt(), any(), any(),
                                 any(), anyString()))
-                .thenReturn((byte) UwbUciConstants.STATUS_CODE_FAILED);
+                .thenReturn(status);
 
         mUwbSessionManager.reconfigure(uwbSession.getSessionHandle(), reconfigureParams);
         mTestLooper.dispatchNext();
@@ -4431,10 +4447,6 @@ public class UwbSessionManagerTest {
         UwbSession uwbSession = prepareExistingUwbSession(firaParams);
         FiraRangingReconfigureParams reconfigureParams =
                 buildReconfigureParamsV2();
-        when(mNativeUwbManager
-                .controllerMulticastListUpdate(anyInt(), anyInt(), anyInt(), any(), any(),
-                        any(), anyString()))
-                .thenReturn((byte) UwbUciConstants.STATUS_CODE_OK);
         UwbMulticastListUpdateStatus uwbMulticastListUpdateStatus =
                 mock(UwbMulticastListUpdateStatus.class);
         when(uwbMulticastListUpdateStatus.getNumOfControlee()).thenReturn(2);
@@ -4443,6 +4455,10 @@ public class UwbSessionManagerTest {
         // One fail, one success
         when(uwbMulticastListUpdateStatus.getStatus()).thenReturn(
                 new int[] { UwbUciConstants.STATUS_CODE_FAILED, UwbUciConstants.STATUS_CODE_OK });
+        when(mNativeUwbManager
+                .controllerMulticastListUpdate(anyInt(), anyInt(), anyInt(), any(), any(),
+                        any(), anyString()))
+                .thenReturn(uwbMulticastListUpdateStatus);
         doReturn(uwbMulticastListUpdateStatus).when(uwbSession).getMulticastListUpdateStatus();
 
         mUwbSessionManager.reconfigure(uwbSession.getSessionHandle(), reconfigureParams);
@@ -4476,10 +4492,11 @@ public class UwbSessionManagerTest {
         UwbSession uwbSession = prepareExistingUwbSession(firaParams);
         FiraRangingReconfigureParams reconfigureParams =
                 buildReconfigureParamsV2();
+        UwbMulticastListUpdateStatus status = mock(UwbMulticastListUpdateStatus.class);
         when(mNativeUwbManager
                 .controllerMulticastListUpdate(anyInt(), anyInt(), anyInt(), any(), any(),
                                 any(), anyString()))
-                .thenReturn((byte) UwbUciConstants.STATUS_CODE_OK);
+                .thenReturn(status);
         UwbMulticastListUpdateStatus uwbMulticastListUpdateStatus =
                 mock(UwbMulticastListUpdateStatus.class);
         when(uwbMulticastListUpdateStatus.getNumOfControlee()).thenReturn(1);
@@ -4539,10 +4556,12 @@ public class UwbSessionManagerTest {
         UwbSession uwbSession = prepareExistingUwbSession(firaParams);
         FiraRangingReconfigureParams reconfigureParams =
                 buildReconfigureParamsV2();
+        UwbMulticastListUpdateStatus status = mock(UwbMulticastListUpdateStatus.class);
         when(mNativeUwbManager
                 .controllerMulticastListUpdate(anyInt(), anyInt(), anyInt(), any(), any(),
                                 any(), anyString()))
-                .thenReturn((byte) UwbUciConstants.STATUS_CODE_FAILED);
+                .thenReturn(status);
+        when(status.getNumOfControlee()).thenReturn(1);
         UwbMulticastListUpdateStatus uwbMulticastListUpdateStatus =
                 mock(UwbMulticastListUpdateStatus.class);
         when(uwbMulticastListUpdateStatus.getStatus()).thenReturn(

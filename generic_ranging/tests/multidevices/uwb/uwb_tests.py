@@ -93,10 +93,10 @@ class RangingTest(ranging_base_test.RangingBaseTest):
         self.initiator.start_uwb_ranging_session(initiator_params)
         self.responder.start_uwb_ranging_session(responder_params)
 
-        uwb_test_utils.verify_peer_found(
+        uwb_test_utils.assert_uwb_peer_found(
             self.initiator, self.responder_addr, session_id
         )
-        uwb_test_utils.verify_peer_found(
+        uwb_test_utils.assert_uwb_peer_found(
             self.responder, self.initiator_addr, session_id
         )
 
@@ -124,10 +124,10 @@ class RangingTest(ranging_base_test.RangingBaseTest):
 
         time.sleep(10)
 
-        uwb_test_utils.verify_peer_found(
+        uwb_test_utils.assert_uwb_peer_found(
             self.initiator, self.responder_addr, session_id=5
         )
-        uwb_test_utils.verify_peer_found(
+        uwb_test_utils.assert_uwb_peer_found(
             self.responder, self.initiator_addr, session_id=5
         )
 
@@ -181,7 +181,7 @@ class RangingTest(ranging_base_test.RangingBaseTest):
         self.responder.start_uwb_ranging_session(responder_params)
 
         try:
-            uwb_test_utils.verify_peer_found(
+            uwb_test_utils.assert_uwb_peer_found(
                 self.initiator, self.responder_addr, session_id=5
             )
             asserts.fail(
@@ -192,7 +192,7 @@ class RangingTest(ranging_base_test.RangingBaseTest):
             )
         except TimeoutError:
             pass
-        uwb_test_utils.verify_peer_found(
+        uwb_test_utils.assert_uwb_peer_found(
             self.responder, self.initiator_addr, session_id=5
         )
 

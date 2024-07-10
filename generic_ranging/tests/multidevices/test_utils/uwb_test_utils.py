@@ -23,31 +23,26 @@ from mobly.controllers import android_device
 
 WAIT_TIME_SEC = 3
 
-
-def verify_peer_found(
+def assert_uwb_peer_found(
     device: generic_ranging_decorator.GenericRangingDecorator,
     peer_addr: List[int],
     session_id: int,
     timeout_s=WAIT_TIME_SEC,
 ):
-    """Verifies that the UWB peer was found.
+    """Asserts that the UWB peer was found.
 
     Args:
-      device: uwb ranging device.
-      peer_addr: uwb peer device address.
-      session: session id.
+        device: uwb ranging device.
+        peer_addr: uwb peer device address.
+        session_d: session id.
+        timeout_s: timeout in seconds.
+
+    Throws:
+        TimeoutError if peer could not be found
     """
     device.ad.log.info(f"Looking for peer {peer_addr}...")
-    start_time = time.time()
-
-    while not device.is_uwb_peer_found(peer_addr, session_id):
-        if time.time() - start_time > timeout_s:
-            raise TimeoutError(f"UWB peer with address {peer_addr} not found")
-
-    logging.info(
-        (f"Peer {peer_addr} found in" f"{round(time.time() - start_time, 2)} seconds")
-    )
-
+    if not device.verify_uwb_peer_found(peer_addr, session_id, timeout_s=timeout_s):
+        raise TimeoutError(f"Peer {peer_addr} not found before timeout expiry of {timeout_s} seconds")
 
 def initialize_uwb_country_code_if_necessary(ad: android_device.AndroidDevice):
     """Sets UWB country code to US if the device does not have it set.

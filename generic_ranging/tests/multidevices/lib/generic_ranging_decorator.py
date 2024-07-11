@@ -10,7 +10,6 @@ STOP_CALLBACK_WAIT_TIME_SEC = 6
 
 
 class GenericRangingDecorator:
-
     def __init__(self, ad: android_device.AndroidDevice):
         """Initialize the ranging device.
 
@@ -24,11 +23,11 @@ class GenericRangingDecorator:
     def start_uwb_ranging_session(self, params: uwb_ranging_params.UwbRangingParams):
         handler = self.ad.ranging.startUwbRanging(params.to_dict())
         self._event_handlers[params.session_id] = handler
-        self.verify_callback_received("Started", params.session_id)
+        self.verify_ranging_event_received("Started", params.session_id)
 
     def stop_uwb_ranging_session(self, session_id: int):
         self.ad.ranging.stopUwbRanging(session_id)
-        self.verify_callback_received("Stopped", session_id)
+        self.verify_ranging_event_received("Stopped", session_id)
         self._event_handlers.pop(session_id)
 
     def clear_all_uwb_ranging_sessions(self):
@@ -46,24 +45,21 @@ class GenericRangingDecorator:
         """
         self._event_handlers[session_id].getAll("GenericRangingCallback")
 
-    def verify_callback_received(
+    def verify_ranging_event_received(
         self,
         ranging_event: str,
         session_id: int,
         timeout_s: int = CALLBACK_WAIT_TIME_SEC,
     ) -> bool:
-        """Verifies if the expected callback is received.
+        """Verifies that the expected event is received before a timeout.
 
         Args:
-          ranging_event: Expected ranging event.
-          session: ranging session.
-          timeout_s: callback timeout in seconds.
+            ranging_event: expected ranging event.
+            session: ranging session.
+            timeout_s: timeout in seconds.
 
         Returns:
-        True if callback was received, False if not.
-
-        Raises:
-          TimeoutError: if the expected callback event is not received.
+            True if the expected event was received.
         """
         handler = self._event_handlers[session_id]
 
@@ -75,23 +71,32 @@ class GenericRangingDecorator:
                 self.ad.log.debug("Received event - %s" % event_received)
                 if event_received == ranging_event:
                     self.ad.log.debug(
-                        "Received the '%s' callback in %ss"
-                        % (ranging_event, round(time.time() - start_time, 2))
+                        f"Received event {ranging_event} in {round(time.time() - start_time, 2)} secs"
                     )
                     self.clear_ranging_callback_events(session_id)
                     return True
-            except errors.CallbackHandlerTimeoutError as e:
+            except errors.CallbackHandlerTimeoutError:
                 self.log.warn("Failed to receive 'RangingSessionCallback' event")
-        raise TimeoutError("Failed to receive '%s' event" % ranging_event)
 
-    def is_uwb_peer_found(self, addr: List[int], session_id: int) -> bool:
-        """Verifies if the UWB peer is found.
+        return False
+
+    def verify_uwb_peer_found(
+        self, addr: List[int], session_id: int, timeout_s: int = CALLBACK_WAIT_TIME_SEC
+    ):
+        """Verifies that the UWB peer is found before a timeout.
 
         Args:
-        addr: peer address.
-        session_id: ranging session id.
+            addr: peer address.
+            session_id: ranging session id.
+            timeout_s: timeout in seconds.
 
         Returns:
-        True if peer is found, False if not.
+            True if the peer was found.
         """
-        return self.verify_callback_received("ReportReceived", session_id)
+        start_time = time.time()
+        while time.time() - start_time < timeout_s:
+            self.verify_ranging_event_received("ReportReceived", session_id)
+            if self.ad.ranging.verifyUwbPeerFound(addr, session_id):
+                return True
+
+        return False

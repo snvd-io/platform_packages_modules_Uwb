@@ -23,6 +23,7 @@ import android.os.RemoteException;
 import android.util.Log;
 import android.uwb.UwbManager;
 
+import androidx.annotation.Nullable;
 import androidx.core.uwb.backend.impl.internal.RangingParameters;
 import androidx.core.uwb.backend.impl.internal.UwbAddress;
 import androidx.core.uwb.backend.impl.internal.UwbComplexChannel;
@@ -150,13 +151,13 @@ public class GenericRangingSnippet implements Snippet {
         }
 
         @Override
-        public void onStarted() {
+        public void onStarted(@Nullable RangingTechnology technology) {
             Log.d(TAG, "GenericRangingCallback#onStarted() called");
             handleEvent(Event.Started);
         }
 
         @Override
-        public void onStopped(int reason) {
+        public void onStopped(@Nullable RangingTechnology technology, @StoppedReason int reason) {
             Log.d(TAG, "GenericRangingCallback#onStopped() called");
             handleEvent(Event.Stopped);
         }
@@ -247,12 +248,14 @@ public class GenericRangingSnippet implements Snippet {
         //TODO: Make this configurable
         //    private Provider<PrecisionRanging.Factory> mRangingFactory;
         RangingConfig rangingConfig =
-                RangingConfig.builder().setRangingTechnologiesToRangeWith(
-                        ImmutableList.of(RangingTechnology.UWB)).setUseFusingAlgorithm(
-                        false).setMaxUpdateInterval(
-                        Duration.ofMillis(200)).setFusionAlgorithmDriftTimeout(
-                        Duration.ofSeconds(1)).setNoUpdateTimeout(
-                        Duration.ofSeconds(2)).setInitTimeout(Duration.ofSeconds(3)).build();
+                RangingConfig.builder()
+                        .setRangingTechnologiesToRangeWith(ImmutableList.of(RangingTechnology.UWB))
+                        .setUseFusingAlgorithm(false)
+                        .setMaxUpdateInterval(Duration.ofMillis(200))
+                        .setFusionAlgorithmDriftTimeout(Duration.ofSeconds(1))
+                        .setNoUpdateTimeout(Duration.ofSeconds(2))
+                        .setInitTimeout(Duration.ofSeconds(3))
+                        .build();
 
         RangingSessionImpl precisionRanging = new RangingSessionImpl(mContext,
                 rangingConfig, Executors.newSingleThreadScheduledExecutor(),

@@ -328,7 +328,7 @@ public final class RangingSessionImpl implements RangingSession {
                     "stopping precision ranging cause: no active ranging in progress and  not "
                             + "using fusion"
                             + " algorithm");
-            stopPrecisionRanging(RangingSession.Callback.StoppedReason.NO_RANGES_TIMEOUT);
+            stopPrecisionRanging(Callback.StoppedReason.EMPTY_SESSION_TIMEOUT);
             return;
         }
 
@@ -340,7 +340,7 @@ public final class RangingSessionImpl implements RangingSession {
                     "stopping precision ranging cause: no active ranging in progress and haven't "
                             + "seen"
                             + " successful fusion data");
-            stopPrecisionRanging(RangingSession.Callback.StoppedReason.NO_RANGES_TIMEOUT);
+            stopPrecisionRanging(Callback.StoppedReason.EMPTY_SESSION_TIMEOUT);
             return;
         }
 
@@ -354,7 +354,7 @@ public final class RangingSessionImpl implements RangingSession {
                 Log.i(TAG,
                         "stopping precision ranging cause: fusion algorithm drift timeout ["
                                 + mConfig.getFusionAlgorithmDriftTimeout().toMillis() + " ms]");
-                stopPrecisionRanging(RangingSession.Callback.StoppedReason.FUSION_DRIFT_TIMEOUT);
+                stopPrecisionRanging(Callback.StoppedReason.EMPTY_SESSION_TIMEOUT);
                 return;
             }
         }
@@ -374,7 +374,7 @@ public final class RangingSessionImpl implements RangingSession {
             Log.i(TAG,
                     "stopping precision ranging cause: no update timeout ["
                             + mConfig.getNoUpdateTimeout().toMillis() + " ms]");
-            stopPrecisionRanging(RangingSession.Callback.StoppedReason.NO_RANGES_TIMEOUT);
+            stopPrecisionRanging(Callback.StoppedReason.EMPTY_SESSION_TIMEOUT);
             return;
         }
 
@@ -398,7 +398,7 @@ public final class RangingSessionImpl implements RangingSession {
 
     @Override
     public void stop() {
-        stopPrecisionRanging(RangingSession.Callback.StoppedReason.REQUESTED);
+        stopPrecisionRanging(RangingAdapter.Callback.StoppedReason.REQUESTED);
     }
 
     /* Calls stop on all ranging adapters and the fusion algorithm and resets all internal states
@@ -429,7 +429,7 @@ public final class RangingSessionImpl implements RangingSession {
 //                    });
         }
 
-        mCallback.onStopped(reason);
+        mCallback.onStopped(null, reason);
 
         // reset internal states and objects
         synchronized (mStateMachine) {
@@ -545,30 +545,34 @@ public final class RangingSessionImpl implements RangingSession {
 
     /* Listener implementation for ranging adapter callback. */
     private class AdapterListener implements RangingAdapter.Callback {
-        private final RangingTechnology technology;
+        private final RangingTechnology mTechnology;
 
         AdapterListener(RangingTechnology technology) {
-            this.technology = technology;
+            this.mTechnology = technology;
         }
 
         @Override
         public void onStarted() {
             synchronized (mStateMachine) {
-                if (mStateMachine.getState() != State.STARTED
-                        && !mStateMachine.transition(State.STARTING, State.STARTED)) {
-                    Log.w(TAG, "Failed transition STARTING -> STARTED");
+                if (mStateMachine.getState() == State.STOPPED) {
+                    Log.w(TAG, "Received adapter onStarted but ranging session is stopped");
                     return;
                 }
+                if (mStateMachine.transition(State.STARTING, State.STARTED)) {
+                    // The first adapter in the session has started, so start the session.
+                    mCallback.onStarted(null);
+                }
             }
-            mCallback.onStarted();
+            mCallback.onStarted(mTechnology);
         }
 
         @Override
-        public void onStopped(RangingAdapter.Callback.StoppedReason reason) {
+        public void onStopped(@RangingAdapter.Callback.StoppedReason int reason) {
             synchronized (mAdapters) {
                 if (mStateMachine.getState() != State.STOPPED) {
-                    mAdapters.remove(technology);
-                    mAdapterListeners.remove(technology);
+                    mAdapters.remove(mTechnology);
+                    mAdapterListeners.remove(mTechnology);
+                    mCallback.onStopped(mTechnology, reason);
                 }
             }
         }
@@ -589,7 +593,7 @@ public final class RangingSessionImpl implements RangingSession {
                                     .build();
                     mCallback.onData(data);
                 }
-                mLastRangingReports.put(technology, rangingReports);
+                mLastRangingReports.put(mTechnology, rangingReports);
             }
         }
     }
@@ -603,7 +607,7 @@ public final class RangingSessionImpl implements RangingSession {
                     return;
                 }
                 if (mStateMachine.transition(State.STARTING, State.STARTED)) {
-                    mCallback.onStarted();
+                    mCallback.onStarted(null);
                 }
                 FusionReport fusionReport = FusionReport.fromFusionAlgorithmEstimate(estimate);
                 if (fusionReport.getArCoreState() == FusionReport.ArCoreState.OK) {

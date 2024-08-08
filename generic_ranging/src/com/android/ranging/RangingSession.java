@@ -19,9 +19,12 @@ package com.android.ranging;
 import android.os.RemoteException;
 
 import androidx.annotation.IntDef;
+import androidx.annotation.Nullable;
 import androidx.core.uwb.backend.impl.internal.RangingCapabilities;
 import androidx.core.uwb.backend.impl.internal.RangingParameters;
 import androidx.core.uwb.backend.impl.internal.UwbAddress;
+
+import com.android.ranging.adapter.RangingAdapter;
 
 import com.google.common.util.concurrent.ListenableFuture;
 
@@ -76,35 +79,46 @@ public interface RangingSession {
 
     /** Callback for {@link RangingSession} events. */
     interface Callback {
-        /** Callback method for reporting when ranging has started. */
-        void onStarted();
+        /**
+         * Callback method for reporting when ranging has started for a particular technology or
+         * for the entire session.
+         * @param technology that was started, or {@code null} to indicate that the entire session
+         *                   has started.
+         */
+        void onStarted(@Nullable RangingTechnology technology);
 
-        /** Callback method for reporting when ranging has stopped. */
-        void onStopped(@StoppedReason int reason);
+        /**
+         * Callback method for reporting when ranging has stopped for a particular technology or for
+         * @param technology that was stopped, or {@code null} to indicate that the entire session
+         *                   has stopped.
+         * @param reason why the technology or session was stopped.
+         */
+        void onStopped(@Nullable RangingTechnology technology, @StoppedReason int reason);
 
-        /** Callback for reporting ranging data. */
+        /**
+         * Callback for reporting ranging data.
+         * @param data to be reported.
+         */
         void onData(RangingData data);
 
         /** Reason why ranging was stopped. */
         @Retention(RetentionPolicy.SOURCE)
         @IntDef({
-                /* Unexpected internal error. */
-                StoppedReason.INTERNAL_ERROR,
-                /* Stopped as a result of calling {@link RangingSession#stop()}. */
-                StoppedReason.REQUESTED,
-                /* Stopped because no ranging data was received before a timeout expired. */
-                StoppedReason.NO_RANGES_TIMEOUT,
-                /*
-                 * Stopped because the fusion algorithm attempted to without ranging measurements
-                 * for too long.
-                 */
-                StoppedReason.FUSION_DRIFT_TIMEOUT,
+            RangingAdapter.Callback.StoppedReason.UNKNOWN,
+            RangingAdapter.Callback.StoppedReason.FAILED_TO_START,
+            RangingAdapter.Callback.StoppedReason.REQUESTED,
+            RangingAdapter.Callback.StoppedReason.LOST_CONNECTION,
+            RangingAdapter.Callback.StoppedReason.SYSTEM_POLICY,
+            RangingAdapter.Callback.StoppedReason.ERROR,
+            StoppedReason.EMPTY_SESSION_TIMEOUT,
         })
         @interface StoppedReason {
-            int INTERNAL_ERROR = 0;
-            int REQUESTED = 1;
-            int NO_RANGES_TIMEOUT = 2;
-            int FUSION_DRIFT_TIMEOUT = 3;
+            /**
+             * Stopped because no ranging data was received before a timeout expired. While the
+             * fusion algorithm can continue to produce data without ranging reports, this
+             * causes inaccuracies and thus a "fusion drift timeout" is enforced.
+             */
+            int EMPTY_SESSION_TIMEOUT = 6;
         }
     }
 }

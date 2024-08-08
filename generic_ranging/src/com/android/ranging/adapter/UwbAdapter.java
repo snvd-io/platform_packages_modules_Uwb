@@ -132,7 +132,7 @@ public class UwbAdapter implements RangingAdapter {
         mCallbacks = callbacks;
         if (mRangingParameters == null) {
             Log.w(TAG, "Tried to start adapter but no ranging parameters have been provided");
-            mCallbacks.onStopped(RangingAdapter.Callback.StoppedReason.NO_PARAMS);
+            mCallbacks.onStopped(Callback.StoppedReason.FAILED_TO_START);
             return;
         }
         mUwbClient.setRangingParameters(mRangingParameters);
@@ -180,6 +180,7 @@ public class UwbAdapter implements RangingAdapter {
     }
 
     private class UwbListener implements RangingSessionCallback {
+
         @Override
         public void onRangingInitialized(UwbDevice device) {
             Log.i(TAG, "onRangingInitialized");
@@ -205,15 +206,29 @@ public class UwbAdapter implements RangingAdapter {
             mCallbacks.onRangingData(rangingDataBuilder.build());
         }
 
+        private static @Callback.StoppedReason int convertReason(
+                @RangingSessionCallback.RangingSuspendedReason int reason) {
+            switch (reason) {
+                case REASON_WRONG_PARAMETERS:
+                case REASON_FAILED_TO_START:
+                    return Callback.StoppedReason.FAILED_TO_START;
+                case REASON_STOPPED_BY_PEER:
+                case REASON_STOP_RANGING_CALLED:
+                    return Callback.StoppedReason.REQUESTED;
+                case REASON_MAX_RANGING_ROUND_RETRY_REACHED:
+                    return Callback.StoppedReason.LOST_CONNECTION;
+                case REASON_SYSTEM_POLICY:
+                    return Callback.StoppedReason.SYSTEM_POLICY;
+                default:
+                    return Callback.StoppedReason.UNKNOWN;
+            }
+        }
+
         @Override
         public void onRangingSuspended(UwbDevice device, @RangingSuspendedReason int reason) {
             Log.i(TAG, "onRangingSuspended: " + reason);
 
-            if (reason == RangingSessionCallback.REASON_STOP_RANGING_CALLED) {
-                mCallbacks.onStopped(RangingAdapter.Callback.StoppedReason.REQUESTED);
-            } else {
-                mCallbacks.onStopped(RangingAdapter.Callback.StoppedReason.ERROR);
-            }
+            mCallbacks.onStopped(convertReason(reason));
             clear();
         }
     }

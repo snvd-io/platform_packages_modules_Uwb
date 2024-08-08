@@ -93,7 +93,7 @@ public class UwbAdapterTest {
     @Test
     public void start_failsWhenParamsNotSet() {
         mUwbAdapter.start(mMockCallback);
-        verify(mMockCallback).onStopped(eq(RangingAdapter.Callback.StoppedReason.NO_PARAMS));
+        verify(mMockCallback).onStopped(eq(RangingAdapter.Callback.StoppedReason.FAILED_TO_START));
         verify(mMockCallback, never()).onStarted();
     }
 
@@ -115,7 +115,7 @@ public class UwbAdapterTest {
         verify(mMockCallback).onRangingData(any());
 
         callbackCaptor.getValue().onRangingSuspended(mockUwbdevice, anyInt());
-        verify(mMockCallback).onStopped(any());
+        verify(mMockCallback).onStopped(anyInt());
     }
 
     @Test

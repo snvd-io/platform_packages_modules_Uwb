@@ -16,6 +16,8 @@
 
 package com.android.ranging.adapter;
 
+import androidx.annotation.IntDef;
+
 import com.android.ranging.RangingReport;
 import com.android.ranging.RangingTechnology;
 
@@ -55,7 +57,7 @@ public interface RangingAdapter {
         void onStarted();
 
         /** Notifies the caller that ranging has stopped on this device. */
-        void onStopped(StoppedReason reason);
+        void onStopped(@StoppedReason int reason);
 
         /**
          * Notifies the caller on each instance of ranging data received from the ranging
@@ -63,11 +65,21 @@ public interface RangingAdapter {
          */
         void onRangingData(RangingReport rangingReport);
 
-        /** Stopped reason for this ranging adapter. */
-        enum StoppedReason {
-            REQUESTED,
-            NO_PARAMS,
-            ERROR,
+        @IntDef({
+                StoppedReason.UNKNOWN,
+                StoppedReason.FAILED_TO_START,
+                StoppedReason.REQUESTED,
+                StoppedReason.LOST_CONNECTION,
+                StoppedReason.SYSTEM_POLICY,
+                StoppedReason.ERROR,
+        })
+        @interface StoppedReason {
+            int UNKNOWN = 0;
+            int ERROR = 1;
+            int FAILED_TO_START = 2;
+            int REQUESTED = 3;
+            int LOST_CONNECTION = 4;
+            int SYSTEM_POLICY = 5;
         }
     }
 }

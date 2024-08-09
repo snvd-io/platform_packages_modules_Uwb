@@ -38,6 +38,7 @@ import androidx.core.uwb.backend.impl.internal.UwbDevice;
 import androidx.core.uwb.backend.impl.internal.UwbFeatureFlags;
 import androidx.core.uwb.backend.impl.internal.UwbServiceImpl;
 
+import com.android.ranging.RangingParameters.TechnologyParameters;
 import com.android.ranging.RangingReport;
 import com.android.ranging.RangingTechnology;
 import com.android.ranging.RangingUtils.StateMachine;
@@ -65,7 +66,6 @@ public class UwbAdapter implements RangingAdapter {
 
     /** Invariant: non-null while a ranging session is active */
     private Callback mCallbacks;
-    private RangingParameters mRangingParameters;
 
     /** @return true if UWB is supported in the provided context, false otherwise */
     public static boolean isSupported(Context context) {
@@ -108,7 +108,6 @@ public class UwbAdapter implements RangingAdapter {
                 : mUwbService.getControlee(context);
         mExecutorService = executorService;
         mCallbacks = null;
-        mRangingParameters = null;
     }
 
     @Override
@@ -122,7 +121,7 @@ public class UwbAdapter implements RangingAdapter {
     }
 
     @Override
-    public void start(Callback callbacks) {
+    public void start(@NonNull TechnologyParameters parameters, @NonNull Callback callbacks) {
         Log.i(TAG, "Start called.");
         if (!mStateMachine.transition(State.STOPPED, State.STARTED)) {
             Log.v(TAG, "Attempted to start adapter when it was already started");
@@ -130,12 +129,12 @@ public class UwbAdapter implements RangingAdapter {
         }
 
         mCallbacks = callbacks;
-        if (mRangingParameters == null) {
-            Log.w(TAG, "Tried to start adapter but no ranging parameters have been provided");
+        if (!(parameters instanceof RangingParameters)) {
+            Log.w(TAG, "Tried to start adapter with invalid ranging parameters");
             mCallbacks.onStopped(Callback.StoppedReason.FAILED_TO_START);
             return;
         }
-        mUwbClient.setRangingParameters(mRangingParameters);
+        mUwbClient.setRangingParameters((RangingParameters) parameters);
 
         var future = Futures.submit(() -> {
             mUwbClient.startRanging(mUwbListener, Executors.newSingleThreadExecutor());
@@ -169,14 +168,6 @@ public class UwbAdapter implements RangingAdapter {
 
     public ListenableFuture<RangingCapabilities> getCapabilities() throws RemoteException {
         return Futures.submit(mUwbService::getRangingCapabilities, mExecutorService);
-    }
-
-    /**
-     * Set the parameters for the UWB session. This must be called before starting the session.
-     * @param params for UWB session configuration.
-     */
-    public void setRangingParameters(@NonNull RangingParameters params) {
-        mRangingParameters = params;
     }
 
     private class UwbListener implements RangingSessionCallback {
@@ -246,7 +237,6 @@ public class UwbAdapter implements RangingAdapter {
     }
 
     private void clear() {
-        mRangingParameters = null;
         mCallbacks = null;
     }
 

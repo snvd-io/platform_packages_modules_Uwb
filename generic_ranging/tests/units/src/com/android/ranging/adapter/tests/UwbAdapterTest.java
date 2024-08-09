@@ -28,13 +28,13 @@ import android.content.Context;
 import android.content.pm.PackageManager;
 
 import androidx.core.uwb.backend.impl.internal.RangingController;
-import androidx.core.uwb.backend.impl.internal.RangingParameters;
 import androidx.core.uwb.backend.impl.internal.RangingPosition;
 import androidx.core.uwb.backend.impl.internal.RangingSessionCallback;
 import androidx.core.uwb.backend.impl.internal.UwbDevice;
 import androidx.core.uwb.backend.impl.internal.UwbServiceImpl;
 import androidx.test.filters.SmallTest;
 
+import com.android.ranging.RangingParameters;
 import com.android.ranging.RangingTechnology;
 import com.android.ranging.adapter.RangingAdapter;
 import com.android.ranging.adapter.UwbAdapter;
@@ -91,16 +91,15 @@ public class UwbAdapterTest {
     }
 
     @Test
-    public void start_failsWhenParamsNotSet() {
-        mUwbAdapter.start(mMockCallback);
+    public void start_failsWhenParamsInvalid() {
+        mUwbAdapter.start(mock(RangingParameters.CsParameters.class), mMockCallback);
         verify(mMockCallback).onStopped(eq(RangingAdapter.Callback.StoppedReason.FAILED_TO_START));
         verify(mMockCallback, never()).onStarted();
     }
 
     @Test
     public void start_startsUwbClientWithCallbacks() {
-        mUwbAdapter.setRangingParameters(mock(RangingParameters.class));
-        mUwbAdapter.start(mMockCallback);
+        mUwbAdapter.start(mock(RangingParameters.UwbParameters.class), mMockCallback);
 
         ArgumentCaptor<RangingSessionCallback> callbackCaptor =
                 ArgumentCaptor.forClass(RangingSessionCallback.class);
@@ -120,7 +119,7 @@ public class UwbAdapterTest {
 
     @Test
     public void stop_stopsUwbClient() {
-        mUwbAdapter.start(mMockCallback);
+        mUwbAdapter.start(mock(RangingParameters.UwbParameters.class), mMockCallback);
         mUwbAdapter.stop();
         verify(mMockUwbClient).stopRanging();
     }

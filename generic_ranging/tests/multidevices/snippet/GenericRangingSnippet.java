@@ -24,7 +24,6 @@ import android.util.Log;
 import android.uwb.UwbManager;
 
 import androidx.annotation.Nullable;
-import androidx.core.uwb.backend.impl.internal.RangingParameters;
 import androidx.core.uwb.backend.impl.internal.UwbAddress;
 import androidx.core.uwb.backend.impl.internal.UwbComplexChannel;
 import androidx.core.uwb.backend.impl.internal.UwbRangeDataNtfConfig;
@@ -32,6 +31,7 @@ import androidx.test.platform.app.InstrumentationRegistry;
 
 import com.android.ranging.RangingConfig;
 import com.android.ranging.RangingData;
+import com.android.ranging.RangingParameters;
 import com.android.ranging.RangingReport;
 import com.android.ranging.RangingSession;
 import com.android.ranging.RangingSessionImpl;
@@ -189,7 +189,7 @@ public class GenericRangingSnippet implements Snippet {
                 .setRangeDataConfigType(j.getInt("rangeDataConfigType"))
                 .build();
 
-        return new RangingParameters(
+        RangingParameters.UwbParameters uwbParams = new RangingParameters.UwbParameters(
                 j.getInt("configType"),
                 j.getInt("sessionId"),
                 j.getInt("subSessionId"),
@@ -204,6 +204,7 @@ public class GenericRangingSnippet implements Snippet {
                 j.getInt("slotDurationMillis"),
                 j.getBoolean("isAoaDisabled")
         );
+        return new RangingParameters.Builder().useUwb(uwbParams).build();
     }
 
     private byte[] convertJSONArrayToByteArray(JSONArray jArray) throws JSONException {
@@ -249,7 +250,6 @@ public class GenericRangingSnippet implements Snippet {
         //    private Provider<PrecisionRanging.Factory> mRangingFactory;
         RangingConfig rangingConfig =
                 RangingConfig.builder()
-                        .setRangingTechnologiesToRangeWith(ImmutableList.of(RangingTechnology.UWB))
                         .setUseFusingAlgorithm(false)
                         .setMaxUpdateInterval(Duration.ofMillis(200))
                         .setFusionAlgorithmDriftTimeout(Duration.ofSeconds(1))
@@ -257,18 +257,17 @@ public class GenericRangingSnippet implements Snippet {
                         .setInitTimeout(Duration.ofSeconds(3))
                         .build();
 
-        RangingSessionImpl precisionRanging = new RangingSessionImpl(mContext,
+        RangingSessionImpl session = new RangingSessionImpl(mContext,
                 rangingConfig, Executors.newSingleThreadScheduledExecutor(),
                 MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor()));
 
-        precisionRanging.useAdapterForTesting(RangingTechnology.UWB, uwbAdapter);
-        precisionRanging.setUwbConfig(generateRangingParameters(config));
+        session.useAdapterForTesting(RangingTechnology.UWB, uwbAdapter);
 
         GenericRangingCallback genericRangingCallback =
                 new GenericRangingCallback(callbackId, Event.EventAll.getType());
         String uwbSessionKey = getUwbSessionKeyFromId(config.getInt("sessionId"));
-        sRangingHashMap.put(uwbSessionKey, precisionRanging);
-        precisionRanging.start(genericRangingCallback);
+        sRangingHashMap.put(uwbSessionKey, session);
+        session.start(generateRangingParameters(config), genericRangingCallback);
         sRangingCallbackHashMap.put(uwbSessionKey, genericRangingCallback);
     }
 

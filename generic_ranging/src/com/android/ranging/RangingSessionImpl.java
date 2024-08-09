@@ -27,7 +27,6 @@ import android.util.Log;
 import androidx.annotation.NonNull;
 import androidx.annotation.VisibleForTesting;
 import androidx.core.uwb.backend.impl.internal.RangingCapabilities;
-import androidx.core.uwb.backend.impl.internal.RangingParameters;
 import androidx.core.uwb.backend.impl.internal.UwbAddress;
 
 import com.android.internal.annotations.GuardedBy;
@@ -48,7 +47,6 @@ import com.google.errorprone.annotations.DoNotCall;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.EnumMap;
-import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -83,13 +81,6 @@ public final class RangingSessionImpl implements RangingSession {
     private final Map<RangingTechnology, RangingAdapter> mAdapters;
     /** Must be thread safe */
     private final Map<RangingTechnology, RangingAdapter.Callback> mAdapterListeners;
-
-    /**
-     * Some of the ranging adapters need to be configured before being called. This list keeps track
-     * of all adapters that were configured so we can report an error to the caller if any of them
-     * were not.
-     */
-    private final EnumSet<RangingTechnology> rangingConfigurationsAdded;
 
     /**
      * In this instance the primary fusion algorithm is the ArCoreMultiSensorFinder algorithm. In
@@ -177,17 +168,7 @@ public final class RangingSessionImpl implements RangingSession {
         mLastFusionReport = Optional.empty();
         mLastFusionDataReceivedTime = Instant.EPOCH;
 
-        rangingConfigurationsAdded = EnumSet.noneOf(RangingTechnology.class);
-
         //this.fusionAlgorithm = fusionAlgorithm;
-
-        for (RangingTechnology technology : config.getRangingTechnologiesToRangeWith()) {
-            if (technology.isSupported(context)) {
-                mAdapters.put(technology, newAdapter(technology));
-            } else {
-                Log.w(TAG, "Attempted to create adapter for unsupported technology " + technology);
-            }
-        }
     }
 
     private @NonNull RangingAdapter newAdapter(@NonNull RangingTechnology technology) {
@@ -203,22 +184,40 @@ public final class RangingSessionImpl implements RangingSession {
     }
 
     @Override
-    public void start(@NonNull Callback callback) {
+    public void start(@NonNull RangingParameters parameters, @NonNull Callback callback) {
+        // TODO(b/353991075): We might want to set useUwbMeasurements automatically based on
+        // provided parameters to avoid this failure condition.
+        if (mConfig.getUseFusingAlgorithm() && parameters.getUwbParameters().isPresent()) {
+            Preconditions.checkArgument(
+                    mConfig.getFusionAlgorithmConfig().get().getUseUwbMeasurements(),
+                    "Fusion algorithm should accept UWB measurements since UWB was requested.");
+        }
+        EnumMap<RangingTechnology, RangingParameters.TechnologyParameters> paramsMap =
+                parameters.asMap();
+        mAdapters.keySet().retainAll(paramsMap.keySet());
+
         Log.i(TAG, "Start Precision Ranging called.");
-        Preconditions.checkArgument(rangingConfigurationsAdded.containsAll(mAdapters.keySet()),
-                "Missing configuration for some ranging technologies that were requested.");
         if (!mStateMachine.transition(State.STOPPED, State.STARTING)) {
             Log.w(TAG, "Failed transition STOPPED -> STARTING");
             return;
         }
         mCallback = callback;
 
-        synchronized (mAdapters) {
-            for (RangingTechnology technology : mAdapters.keySet()) {
-                AdapterListener listener = new AdapterListener(technology);
-                mAdapterListeners.put(technology, listener);
-                mAdapters.get(technology).start(listener);
+        for (RangingTechnology technology : paramsMap.keySet()) {
+            if (!technology.isSupported(mContext)) {
+                Log.w(TAG, "Attempted to range with unsupported technology " + technology
+                        + ", skipping");
+                continue;
             }
+
+            // Do not overwrite any adapters that were supplied for testing
+            if (!mAdapters.containsKey(technology)) {
+                mAdapters.put(technology, newAdapter(technology));
+            }
+
+            AdapterListener listener = new AdapterListener(technology);
+            mAdapterListeners.put(technology, listener);
+            mAdapters.get(technology).start(paramsMap.get(technology), listener);
         }
 
         if (mConfig.getUseFusingAlgorithm()) {
@@ -439,8 +438,8 @@ public final class RangingSessionImpl implements RangingSession {
         mLastUpdateTime = Instant.EPOCH;
         mLastRangeDataReceivedTime = Instant.EPOCH;
         mLastFusionDataReceivedTime = Instant.EPOCH;
+        mAdapters.clear();
         mAdapterListeners.clear();
-        rangingConfigurationsAdded.clear();
         //fusionAlgorithmListener = Optional.empty();
         mCallback = null;
     }
@@ -470,30 +469,9 @@ public final class RangingSessionImpl implements RangingSession {
         return uwbAdapter.getLocalAddress();
     }
 
-    @Override
-    public void setUwbConfig(RangingParameters rangingParameters) {
-        if (mConfig.getRangingTechnologiesToRangeWith().contains(RangingTechnology.UWB)) {
-            UwbAdapter uwbAdapter = (UwbAdapter) mAdapters.get(RangingTechnology.UWB);
-            if (uwbAdapter == null) {
-                Log.e(TAG,
-                        "UWB adapter not found when setting config even though it was requested.");
-                return;
-            }
-            uwbAdapter.setRangingParameters(rangingParameters);
-        }
-        rangingConfigurationsAdded.add(RangingTechnology.UWB);
-    }
-
     @DoNotCall("Not implemented")
     @Override
     public void getCsCapabilities() {
-        throw new UnsupportedOperationException("Not implemented");
-    }
-
-    /** Sets CS configuration. */
-    @DoNotCall("Not implemented")
-    @Override
-    public void setCsConfig() {
         throw new UnsupportedOperationException("Not implemented");
     }
 

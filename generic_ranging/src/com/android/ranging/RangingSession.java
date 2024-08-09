@@ -19,9 +19,9 @@ package com.android.ranging;
 import android.os.RemoteException;
 
 import androidx.annotation.IntDef;
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.uwb.backend.impl.internal.RangingCapabilities;
-import androidx.core.uwb.backend.impl.internal.RangingParameters;
 import androidx.core.uwb.backend.impl.internal.UwbAddress;
 
 import com.android.ranging.adapter.RangingAdapter;
@@ -36,7 +36,7 @@ import java.util.EnumMap;
 public interface RangingSession {
 
     /** Starts ranging with all technologies specified, providing results via the given callback. */
-    void start(Callback callback);
+    void start(@NonNull RangingParameters parameters, @NonNull Callback callback);
 
     /** Stops ranging. */
     void stop();
@@ -52,14 +52,8 @@ public interface RangingSession {
     /** Returns UWB address if UWB was requested. */
     ListenableFuture<UwbAddress> getUwbAddress() throws RemoteException;
 
-    /** Sets UWB configuration. No op if UWB was not requested. */
-    void setUwbConfig(RangingParameters rangingParameters);
-
     /** Returns CS capabilities if CS was requested. */
     void getCsCapabilities();
-
-    /** Sets CS configuration. No op if CS was not requested. */
-    void setCsConfig();
 
     /** State of an individual {@link RangingTechnology}. */
     @Retention(RetentionPolicy.SOURCE)
@@ -99,7 +93,7 @@ public interface RangingSession {
          * Callback for reporting ranging data.
          * @param data to be reported.
          */
-        void onData(RangingData data);
+        void onData(@NonNull RangingData data);
 
         /** Reason why ranging was stopped. */
         @Retention(RetentionPolicy.SOURCE)

@@ -18,6 +18,7 @@ package com.android.ranging.adapter;
 
 import androidx.annotation.IntDef;
 
+import com.android.ranging.RangingParameters.TechnologyParameters;
 import com.android.ranging.RangingReport;
 import com.android.ranging.RangingTechnology;
 
@@ -40,9 +41,10 @@ public interface RangingAdapter {
      * Start ranging. Does nothing if the ranging technology is not enabled on device or if ranging
      * has already been started. In the latter case, this method will not overwrite the existing
      * callback.
+     * @param parameters to range with.
      * @param callback to be called on the occurrence of ranging events.
      */
-    void start(Callback callback);
+    void start(TechnologyParameters parameters, Callback callback);
 
     /** Stop ranging. */
     void stop();

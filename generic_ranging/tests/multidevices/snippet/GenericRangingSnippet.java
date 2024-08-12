@@ -36,7 +36,8 @@ import com.android.ranging.RangingReport;
 import com.android.ranging.RangingSession;
 import com.android.ranging.RangingSessionImpl;
 import com.android.ranging.RangingTechnology;
-import com.android.ranging.adapter.UwbAdapter;
+import com.android.ranging.uwb.UwbAdapter;
+import com.android.ranging.uwb.UwbParameters;
 
 import com.google.android.mobly.snippet.Snippet;
 import com.google.android.mobly.snippet.event.EventCache;
@@ -189,7 +190,7 @@ public class GenericRangingSnippet implements Snippet {
                 .setRangeDataConfigType(j.getInt("rangeDataConfigType"))
                 .build();
 
-        RangingParameters.UwbParameters uwbParams = new RangingParameters.UwbParameters(
+        UwbParameters uwbParams = new UwbParameters(
                 j.getInt("configType"),
                 j.getInt("sessionId"),
                 j.getInt("subSessionId"),

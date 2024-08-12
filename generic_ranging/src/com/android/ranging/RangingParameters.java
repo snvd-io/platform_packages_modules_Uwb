@@ -17,45 +17,17 @@
 package com.android.ranging;
 
 import androidx.annotation.NonNull;
-import androidx.core.uwb.backend.impl.internal.UwbAddress;
-import androidx.core.uwb.backend.impl.internal.UwbComplexChannel;
-import androidx.core.uwb.backend.impl.internal.UwbRangeDataNtfConfig;
+
+import com.android.ranging.cs.CsParameters;
+import com.android.ranging.uwb.UwbParameters;
 
 import java.util.EnumMap;
-import java.util.List;
 import java.util.Optional;
 
 /** Parameters for a generic ranging session. */
 public class RangingParameters {
     /** Parameters for a specific generic ranging technology. */
     public interface TechnologyParameters { }
-
-    /** Parameters for UWB ranging. */
-    public static class UwbParameters
-            extends androidx.core.uwb.backend.impl.internal.RangingParameters
-            implements TechnologyParameters {
-
-        public UwbParameters(int uwbConfigId, int sessionId, int subSessionId,
-                byte[] sessionKeyInfo,
-                byte[] subSessionKeyInfo,
-                UwbComplexChannel complexChannel,
-                List<UwbAddress> peerAddresses,
-                int rangingUpdateRate,
-                @NonNull UwbRangeDataNtfConfig uwbRangeDataNtfConfig,
-                int slotDuration, boolean isAoaDisabled) {
-            super(uwbConfigId, sessionId, subSessionId, sessionKeyInfo, subSessionKeyInfo,
-                    complexChannel,
-                    peerAddresses, rangingUpdateRate, uwbRangeDataNtfConfig, slotDuration,
-                    isAoaDisabled);
-        }
-    }
-
-    /** Parameters for Bluetooth channel sounding ranging. */
-    public static class CsParameters implements TechnologyParameters {
-        public CsParameters() {
-            throw new UnsupportedOperationException("Not implemented!");
-        }
-    }
 
     private final EnumMap<RangingTechnology, TechnologyParameters> mParameters;
 

@@ -24,8 +24,6 @@ import androidx.annotation.Nullable;
 import androidx.core.uwb.backend.impl.internal.RangingCapabilities;
 import androidx.core.uwb.backend.impl.internal.UwbAddress;
 
-import com.android.ranging.adapter.RangingAdapter;
-
 import com.google.common.util.concurrent.ListenableFuture;
 
 import java.lang.annotation.Retention;

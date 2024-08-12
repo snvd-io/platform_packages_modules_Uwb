@@ -31,9 +31,8 @@ import androidx.core.uwb.backend.impl.internal.UwbAddress;
 
 import com.android.internal.annotations.GuardedBy;
 import com.android.ranging.RangingUtils.StateMachine;
-import com.android.ranging.adapter.CsAdapter;
-import com.android.ranging.adapter.RangingAdapter;
-import com.android.ranging.adapter.UwbAdapter;
+import com.android.ranging.cs.CsAdapter;
+import com.android.ranging.uwb.UwbAdapter;
 import com.android.sensor.Estimate;
 import com.android.sensor.MultiSensorFinderListener;
 

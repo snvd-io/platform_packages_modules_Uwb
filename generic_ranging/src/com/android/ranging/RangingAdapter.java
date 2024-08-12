@@ -14,13 +14,11 @@
  * limitations under the License.
  */
 
-package com.android.ranging.adapter;
+package com.android.ranging;
 
 import androidx.annotation.IntDef;
 
 import com.android.ranging.RangingParameters.TechnologyParameters;
-import com.android.ranging.RangingReport;
-import com.android.ranging.RangingTechnology;
 
 import com.google.common.util.concurrent.ListenableFuture;
 

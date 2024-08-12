@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.android.ranging.adapter;
+package com.android.ranging.uwb;
 
 import static com.google.common.util.concurrent.Futures.immediateFuture;
 
@@ -38,6 +38,7 @@ import androidx.core.uwb.backend.impl.internal.UwbDevice;
 import androidx.core.uwb.backend.impl.internal.UwbFeatureFlags;
 import androidx.core.uwb.backend.impl.internal.UwbServiceImpl;
 
+import com.android.ranging.RangingAdapter;
 import com.android.ranging.RangingParameters.TechnologyParameters;
 import com.android.ranging.RangingReport;
 import com.android.ranging.RangingTechnology;

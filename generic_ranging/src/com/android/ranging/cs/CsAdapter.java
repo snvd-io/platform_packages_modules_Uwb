@@ -14,8 +14,9 @@
  * limitations under the License.
  */
 
-package com.android.ranging.adapter;
+package com.android.ranging.cs;
 
+import com.android.ranging.RangingAdapter;
 import com.android.ranging.RangingParameters.TechnologyParameters;
 import com.android.ranging.RangingTechnology;
 

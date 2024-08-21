@@ -16,6 +16,8 @@
 
 package com.android.ranging.cs;
 
+import android.content.Context;
+
 import com.android.ranging.RangingAdapter;
 import com.android.ranging.RangingParameters.TechnologyParameters;
 import com.android.ranging.RangingTechnology;
@@ -26,7 +28,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 /** Channel Sounding adapter for ranging. */
 public class CsAdapter implements RangingAdapter {
 
-    public static boolean isSupported() {
+    public static boolean isSupported(Context context) {
         return false;
     }
 

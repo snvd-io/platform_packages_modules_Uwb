@@ -54,7 +54,7 @@ public enum RangingTechnology {
             case UWB:
                 return UwbAdapter.isSupported(context);
             case CS:
-                return CsAdapter.isSupported();
+                return CsAdapter.isSupported(context);
             default:
                 return false;
         }

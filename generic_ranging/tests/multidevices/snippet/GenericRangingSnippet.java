@@ -70,7 +70,7 @@ public class GenericRangingSnippet implements Snippet {
     private final ListeningExecutorService mExecutor = MoreExecutors.listeningDecorator(
             Executors.newSingleThreadExecutor());
     private final EventCache mEventCache = EventCache.getInstance();
-    private static final HashMap<String, PrecisionRanging> sRangingHashMap =
+    private static final HashMap<String, PrecisionRangingImpl> sRangingHashMap =
             new HashMap<>();
     private static final HashMap<String, GenericRangingCallback> sRangingCallbackHashMap =
             new HashMap<>();

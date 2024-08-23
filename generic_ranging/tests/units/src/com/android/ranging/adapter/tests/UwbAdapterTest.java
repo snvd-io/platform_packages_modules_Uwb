@@ -120,6 +120,7 @@ public class UwbAdapterTest {
 
     @Test
     public void stop_stopsUwbClient() {
+        mUwbAdapter.start(mMockCallback);
         mUwbAdapter.stop();
         verify(mMockUwbClient).stopRanging();
     }

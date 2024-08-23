@@ -58,7 +58,7 @@ public class StatefulAdapter<A extends RangingAdapter> implements RangingAdapter
     }
 
     @Override
-    public ListenableFuture<Boolean> isEnabled() throws RemoteException {
+    public ListenableFuture<Boolean> isEnabled() {
         return mAdapter.isEnabled();
     }
 

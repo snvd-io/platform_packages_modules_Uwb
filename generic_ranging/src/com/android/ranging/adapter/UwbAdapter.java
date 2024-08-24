@@ -114,8 +114,8 @@ public class UwbAdapter implements RangingAdapter {
     }
 
     @Override
-    public ListenableFuture<Boolean> isEnabled() throws RemoteException {
-        return Futures.submit(mUwbService::isAvailable, mExecutorService);
+    public ListenableFuture<Boolean> isEnabled() {
+        return Futures.immediateFuture(mUwbService.isAvailable());
     }
 
     @Override

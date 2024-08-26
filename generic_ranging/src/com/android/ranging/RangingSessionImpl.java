@@ -55,28 +55,28 @@ import java.util.Optional;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.Collectors;
 
-/** Precision Ranging Implementation (Generic Ranging Layer). */
-public final class PrecisionRangingImpl implements PrecisionRanging {
+/**  Implementation of the Android multi-technology ranging layer */
+public final class RangingSessionImpl implements RangingSession {
 
-    private static final String TAG = PrecisionRangingImpl.class.getSimpleName();
+    private static final String TAG = RangingSessionImpl.class.getSimpleName();
 
     /**
      * Default frequency of the task running the periodic update when {@link
-     * PrecisionRangingConfig#getMaxUpdateInterval} is set to 0.
+     * RangingConfig#getMaxUpdateInterval} is set to 0.
      */
     private static final long DEFAULT_INTERNAL_UPDATE_INTERVAL_MS = 100;
 
     private final Context mContext;
-    private final PrecisionRangingConfig mConfig;
+    private final RangingConfig mConfig;
 
     /** Callback for session events. Invariant: Non-null while a session is ongoing */
-    private PrecisionRanging.Callback mCallback;
+    private RangingSession.Callback mCallback;
 
     /** Keeps track of state of the ranging session */
     private final StateMachine<State> mStateMachine;
 
     /**
-     * Ranging adapters used for this session
+     * Ranging adapters used for this session.
      * Must be thread safe. If you must synchronize on mAdapters and mStateMachine, make sure
      * mAdapters is the outer block, otherwise deadlock could occur!
      */
@@ -104,8 +104,7 @@ public final class PrecisionRangingImpl implements PrecisionRanging {
 
     /**
      * The executor where periodic updater is executed. Periodic updater updates the caller with
-     * new
-     * data if available and stops precision ranging if stopping conditions are met. Periodic
+     * new data if available and stops precision ranging if stopping conditions are met. Periodic
      * updater doesn't report new data if config.getMaxUpdateInterval is 0, in that case updates
      * happen immediately after new data is received.
      */
@@ -120,41 +119,41 @@ public final class PrecisionRangingImpl implements PrecisionRanging {
 
     /** Last data received from each ranging technology */
     @GuardedBy("mStateMachine")
-    private final Map<RangingTechnology, RangingData> mLastRangingData;
+    private final Map<RangingTechnology, RangingReport> mLastRangingReports;
 
     /** Last data received from the fusion algorithm */
     @GuardedBy("mStateMachine")
-    private Optional<FusionData> mLastFusionData;
+    private Optional<FusionReport> mLastFusionReport;
 
     /**
      * Last update time is used to check if we should report new data via the callback if available.
-     * It's not used as a reason to stop precision ranging, last received times are used instead for
-     * that.
+     * It's not used as a reason to stop the ranging session, last received times are used instead
+     * for that.
      */
     private Instant mLastUpdateTime;
 
     /**
      * Start time is used to check if we're in a grace period right after starting so we don't stop
-     * precision ranging before giving it a chance to start producing data.
+     * ranging before giving it a chance to start producing data.
      */
     private Instant mStartTime;
 
     /**
-     * Last Range data received is used to check if precision ranging should be stopped if we didn't
+     * Last Range data received is used to check if ranging session should be stopped if we didn't
      * receive any data for too long, or to check if we should stop due to "drifting" in case fusion
      * algorithm is still reporting data, but we didn't feed any ranging data into for far too long.
      */
     private Instant mLastRangeDataReceivedTime;
 
     /**
-     * Last Fusion data received time is used to check if precision ranging should be stopped if we
+     * Last Fusion data received time is used to check if ranging session should be stopped if we
      * didn't receive any data for too long.
      */
     private Instant mLastFusionDataReceivedTime;
 
-    public PrecisionRangingImpl(
+    public RangingSessionImpl(
             @NonNull Context context,
-            @NonNull PrecisionRangingConfig config,
+            @NonNull RangingConfig config,
             @NonNull ScheduledExecutorService periodicUpdateExecutor,
             @NonNull ListeningExecutorService rangingAdapterExecutor
             //Optional<ArCoreMultiSensorFinder> fusionAlgorithm,
@@ -173,9 +172,9 @@ public final class PrecisionRangingImpl implements PrecisionRanging {
 
         mLastUpdateTime = Instant.EPOCH;
 
-        mLastRangingData = new EnumMap<>(RangingTechnology.class);
+        mLastRangingReports = new EnumMap<>(RangingTechnology.class);
         mLastRangeDataReceivedTime = Instant.EPOCH;
-        mLastFusionData = Optional.empty();
+        mLastFusionReport = Optional.empty();
         mLastFusionDataReceivedTime = Instant.EPOCH;
 
         rangingConfigurationsAdded = EnumSet.noneOf(RangingTechnology.class);
@@ -281,38 +280,38 @@ public final class PrecisionRangingImpl implements PrecisionRanging {
         }
         // Skip update if there's no new data to report
         synchronized (mStateMachine) {
-            if (mLastRangingData.isEmpty()) {
+            if (mLastRangingReports.isEmpty()) {
                 return;
             }
         }
 
-        PrecisionData.Builder precisionDataBuilder = PrecisionData.builder();
+        RangingData.Builder dataBuilder = RangingData.builder();
         synchronized (mStateMachine) {
-            ImmutableList.Builder<RangingData> rangingDataBuilder = ImmutableList.builder();
+            ImmutableList.Builder<RangingReport> rangingReportsBuilder = ImmutableList.builder();
             for (RangingTechnology technology : mAdapters.keySet()) {
-                if (mLastRangingData.containsKey(technology)) {
-                    rangingDataBuilder.add(mLastRangingData.get(technology));
+                if (mLastRangingReports.containsKey(technology)) {
+                    rangingReportsBuilder.add(mLastRangingReports.get(technology));
                 }
             }
-            ImmutableList<RangingData> rangingData = rangingDataBuilder.build();
+            ImmutableList<RangingReport> rangingData = rangingReportsBuilder.build();
             if (!rangingData.isEmpty()) {
-                precisionDataBuilder.setRangingData(rangingData);
+                dataBuilder.setRangingReports(rangingData);
             }
-            mLastFusionData.ifPresent(precisionDataBuilder::setFusionData);
+            mLastFusionReport.ifPresent(dataBuilder::setFusionReport);
 
             for (RangingTechnology technology : mAdapters.keySet()) {
-                mLastRangingData.remove(technology);
+                mLastRangingReports.remove(technology);
             }
-            mLastFusionData = Optional.empty();
+            mLastFusionReport = Optional.empty();
         }
         mLastUpdateTime = Instant.now();
-        precisionDataBuilder.setTimestamp(mLastUpdateTime.toEpochMilli());
-        PrecisionData precisionData = precisionDataBuilder.build();
+        dataBuilder.setTimestamp(mLastUpdateTime.toEpochMilli());
+        RangingData data = dataBuilder.build();
         synchronized (mStateMachine) {
             if (mStateMachine.getState() == State.STOPPED) {
                 return;
             }
-            mCallback.onData(precisionData);
+            mCallback.onData(data);
         }
     }
 
@@ -329,7 +328,7 @@ public final class PrecisionRangingImpl implements PrecisionRanging {
                     "stopping precision ranging cause: no active ranging in progress and  not "
                             + "using fusion"
                             + " algorithm");
-            stopPrecisionRanging(PrecisionRanging.Callback.StoppedReason.NO_RANGES_TIMEOUT);
+            stopPrecisionRanging(RangingSession.Callback.StoppedReason.NO_RANGES_TIMEOUT);
             return;
         }
 
@@ -341,7 +340,7 @@ public final class PrecisionRangingImpl implements PrecisionRanging {
                     "stopping precision ranging cause: no active ranging in progress and haven't "
                             + "seen"
                             + " successful fusion data");
-            stopPrecisionRanging(PrecisionRanging.Callback.StoppedReason.NO_RANGES_TIMEOUT);
+            stopPrecisionRanging(RangingSession.Callback.StoppedReason.NO_RANGES_TIMEOUT);
             return;
         }
 
@@ -353,9 +352,9 @@ public final class PrecisionRangingImpl implements PrecisionRanging {
             if (currentTime.isAfter(
                     mLastRangeDataReceivedTime.plus(mConfig.getFusionAlgorithmDriftTimeout()))) {
                 Log.i(TAG,
-                        "stopping precision ranging cause: fusion algorithm drift timeout [" +
-                                mConfig.getFusionAlgorithmDriftTimeout().toMillis() + " ms]");
-                stopPrecisionRanging(PrecisionRanging.Callback.StoppedReason.FUSION_DRIFT_TIMEOUT);
+                        "stopping precision ranging cause: fusion algorithm drift timeout ["
+                                + mConfig.getFusionAlgorithmDriftTimeout().toMillis() + " ms]");
+                stopPrecisionRanging(RangingSession.Callback.StoppedReason.FUSION_DRIFT_TIMEOUT);
                 return;
             }
         }
@@ -373,9 +372,9 @@ public final class PrecisionRangingImpl implements PrecisionRanging {
                         : mLastFusionDataReceivedTime;
         if (currentTime.isAfter(lastReceivedDataTime.plus(mConfig.getNoUpdateTimeout()))) {
             Log.i(TAG,
-                    "stopping precision ranging cause: no update timeout [" +
-                            mConfig.getNoUpdateTimeout().toMillis() + " ms]");
-            stopPrecisionRanging(PrecisionRanging.Callback.StoppedReason.NO_RANGES_TIMEOUT);
+                    "stopping precision ranging cause: no update timeout ["
+                            + mConfig.getNoUpdateTimeout().toMillis() + " ms]");
+            stopPrecisionRanging(RangingSession.Callback.StoppedReason.NO_RANGES_TIMEOUT);
             return;
         }
 
@@ -383,8 +382,8 @@ public final class PrecisionRangingImpl implements PrecisionRanging {
     }
 
     /* Feeds ranging adapter data into the fusion algorithm. */
-    private void feedDataToFusionAlgorithm(RangingData rangingData) {
-        switch (rangingData.getRangingTechnology()) {
+    private void feedDataToFusionAlgorithm(RangingReport rangingReport) {
+        switch (rangingReport.getRangingTechnology()) {
             case UWB:
 //                fusionAlgorithm
 //                        .get()
@@ -399,7 +398,7 @@ public final class PrecisionRangingImpl implements PrecisionRanging {
 
     @Override
     public void stop() {
-        stopPrecisionRanging(PrecisionRanging.Callback.StoppedReason.REQUESTED);
+        stopPrecisionRanging(RangingSession.Callback.StoppedReason.REQUESTED);
     }
 
     /* Calls stop on all ranging adapters and the fusion algorithm and resets all internal states
@@ -434,8 +433,8 @@ public final class PrecisionRangingImpl implements PrecisionRanging {
 
         // reset internal states and objects
         synchronized (mStateMachine) {
-            mLastRangingData.clear();
-            mLastFusionData = Optional.empty();
+            mLastRangingReports.clear();
+            mLastFusionReport = Optional.empty();
         }
         mLastUpdateTime = Instant.EPOCH;
         mLastRangeDataReceivedTime = Instant.EPOCH;
@@ -575,22 +574,22 @@ public final class PrecisionRangingImpl implements PrecisionRanging {
         }
 
         @Override
-        public void onRangingData(RangingData rangingData) {
+        public void onRangingData(RangingReport rangingReports) {
             synchronized (mStateMachine) {
                 if (mStateMachine.getState() != State.STARTED) {
                     return;
                 }
                 mLastRangeDataReceivedTime = Instant.now();
-                feedDataToFusionAlgorithm(rangingData);
+                feedDataToFusionAlgorithm(rangingReports);
                 if (mConfig.getMaxUpdateInterval().isZero()) {
-                    PrecisionData precisionData =
-                            PrecisionData.builder()
-                                    .setRangingData(ImmutableList.of(rangingData))
+                    RangingData data =
+                            RangingData.builder()
+                                    .setRangingReports(ImmutableList.of(rangingReports))
                                     .setTimestamp(Instant.now().toEpochMilli())
                                     .build();
-                    mCallback.onData(precisionData);
+                    mCallback.onData(data);
                 }
-                mLastRangingData.put(technology, rangingData);
+                mLastRangingReports.put(technology, rangingReports);
             }
         }
     }
@@ -606,18 +605,18 @@ public final class PrecisionRangingImpl implements PrecisionRanging {
                 if (mStateMachine.transition(State.STARTING, State.STARTED)) {
                     mCallback.onStarted();
                 }
-                FusionData fusionData = FusionData.fromFusionAlgorithmEstimate(estimate);
-                if (fusionData.getArCoreState() == FusionData.ArCoreState.OK) {
+                FusionReport fusionReport = FusionReport.fromFusionAlgorithmEstimate(estimate);
+                if (fusionReport.getArCoreState() == FusionReport.ArCoreState.OK) {
                     mLastFusionDataReceivedTime = Instant.now();
                 }
-                mLastFusionData = Optional.of(fusionData);
+                mLastFusionReport = Optional.of(fusionReport);
                 if (mConfig.getMaxUpdateInterval().isZero()) {
-                    PrecisionData precisionData =
-                            PrecisionData.builder()
-                                    .setFusionData(fusionData)
+                    RangingData data =
+                            RangingData.builder()
+                                    .setFusionReport(fusionReport)
                                     .setTimestamp(Instant.now().toEpochMilli())
                                     .build();
-                    mCallback.onData(precisionData);
+                    mCallback.onData(data);
                 }
             }
         }

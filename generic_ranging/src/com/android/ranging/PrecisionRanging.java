@@ -22,7 +22,6 @@ import androidx.annotation.IntDef;
 import androidx.core.uwb.backend.impl.internal.RangingCapabilities;
 import androidx.core.uwb.backend.impl.internal.RangingParameters;
 import androidx.core.uwb.backend.impl.internal.UwbAddress;
-import androidx.core.uwb.backend.impl.internal.UwbComplexChannel;
 
 import com.google.common.util.concurrent.ListenableFuture;
 
@@ -36,17 +35,6 @@ import java.util.EnumMap;
  * sensor data such as IMU and ArCore.
  */
 public interface PrecisionRanging {
-
-    /**
-     * Creates a new instance of {@link PrecisionRanging}. Ranging technologies that will be used
-     * are
-     * set through the configuration. Each ranging technology that's used may require additional
-     * setup
-     * through set*RangingTech*Config before start can be called.
-     */
-    interface Factory {
-        PrecisionRanging create(PrecisionRangingConfig config);
-    }
 
     /** Starts precision ranging, results are provided via the given callback. */
     void start(Callback callback);
@@ -67,9 +55,6 @@ public interface PrecisionRanging {
 
     /** Sets UWB configuration. No op if UWB was not requested. */
     void setUwbConfig(RangingParameters rangingParameters);
-
-    /** Get the Uwb complex channel for the controller. */
-    ListenableFuture<UwbComplexChannel> getUwbComplexChannel() throws RemoteException;
 
     /** Returns CS capabilities if CS was requested. */
     void getCsCapabilities();

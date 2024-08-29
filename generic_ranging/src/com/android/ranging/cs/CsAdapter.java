@@ -14,9 +14,10 @@
  * limitations under the License.
  */
 
-package com.android.ranging.adapter;
+package com.android.ranging.cs;
 
-
+import com.android.ranging.RangingAdapter;
+import com.android.ranging.RangingParameters.TechnologyParameters;
 import com.android.ranging.RangingTechnology;
 
 import com.google.common.util.concurrent.Futures;
@@ -44,7 +45,7 @@ public class CsAdapter implements RangingAdapter {
     }
 
     @Override
-    public void start(Callback callback) {
+    public void start(TechnologyParameters parameters, Callback callback) {
         throw new UnsupportedOperationException("Not implemented.");
     }
 

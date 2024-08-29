@@ -71,7 +71,7 @@ public class UwbAdapterTest {
     private UwbAdapter mUwbAdapter;
 
     @Before
-    public void setUp() {
+    public void setup() {
         when(mMockContext.getPackageManager().hasSystemFeature(PackageManager.FEATURE_UWB))
                 .thenReturn(true);
         when(mMockUwbService.getController(any())).thenReturn(mMockUwbClient);

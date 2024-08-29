@@ -389,8 +389,8 @@ public final class RangingSessionImpl implements RangingSession {
 //                        .getTimestamp());
                 break;
             case CS:
-                throw new UnsupportedOperationException(
-                        "CS support not implemented. Can't update fusion alg.");
+//                throw new UnsupportedOperationException(
+//                        "CS support not implemented. Can't update fusion alg.");
         }
     }
 
@@ -412,8 +412,9 @@ public final class RangingSessionImpl implements RangingSession {
         }
         // stop all ranging techs
         synchronized (mAdapters) {
-            for (RangingAdapter adapter : mAdapters.values()) {
-                adapter.stop();
+            for (RangingTechnology technology : mAdapters.keySet()) {
+                mAdapters.get(technology).stop();
+                mCallback.onStopped(technology, reason);
             }
         }
 

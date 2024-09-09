@@ -24,6 +24,7 @@ import static com.android.ranging.uwb.backend.internal.Utils.RANGE_DATA_NTF_ENAB
 import static com.android.ranging.uwb.backend.internal.Utils.convertMsToRstu;
 
 import static com.google.uwb.support.fira.FiraParams.AOA_RESULT_REQUEST_MODE_REQ_AOA_RESULTS;
+import static com.google.uwb.support.fira.FiraParams.FILTER_TYPE_NONE;
 import static com.google.uwb.support.fira.FiraParams.MULTICAST_LIST_UPDATE_ACTION_ADD;
 import static com.google.uwb.support.fira.FiraParams.RANGE_DATA_NTF_CONFIG_ENABLE_PROXIMITY_EDGE_TRIG;
 import static com.google.uwb.support.fira.FiraParams.RANGING_DEVICE_ROLE_INITIATOR;
@@ -128,6 +129,7 @@ public class ConfigurationManagerTest {
         assertEquals(params.getKeyRotationRate(), 0);
         assertEquals(params.getSlotDurationRstu(), convertMsToRstu(Utils.DURATION_2_MS));
         assertEquals(params.getAoaResultRequest(), AOA_RESULT_REQUEST_MODE_REQ_AOA_RESULTS);
+        assertEquals(params.getFilterType(), FILTER_TYPE_NONE);
     }
 
     @Test

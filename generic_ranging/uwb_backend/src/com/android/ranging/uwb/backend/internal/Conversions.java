@@ -111,7 +111,7 @@ final class Conversions {
             if (azimuthMeasurement != null && !isMeasurementAllZero(azimuthMeasurement)) {
                 azimuth =
                         createMeasurement(
-                                Math.toDegrees(azimuthMeasurement.getRadians()),
+                                azimuthMeasurement.getRadians(),
                                 azimuthMeasurement.getConfidenceLevel(),
                                 true);
             }
@@ -119,7 +119,7 @@ final class Conversions {
             if (altitudeMeasurement != null && !isMeasurementAllZero(altitudeMeasurement)) {
                 altitude =
                         createMeasurement(
-                                Math.toDegrees(altitudeMeasurement.getRadians()),
+                                altitudeMeasurement.getRadians(),
                                 altitudeMeasurement.getConfidenceLevel(),
                                 true);
             }

@@ -68,8 +68,7 @@ public class RangingPosition {
     }
 
     /**
-     * Gets the azimuth angle in degrees of the ranging device, or null if not available. The range
-     * is (-90, 90].
+     * Gets the azimuth angle in radians of the ranging device, or null if not available.
      */
     @Nullable
     public RangingMeasurement getAzimuth() {
@@ -77,8 +76,7 @@ public class RangingPosition {
     }
 
     /**
-     * Gets the elevation angle in degrees of the ranging device, or null if not available. The
-     * range is (-90, 90].
+     * Gets the elevation angle in radians of the ranging device, or null if not available.
      */
     @Nullable
     public RangingMeasurement getElevation() {

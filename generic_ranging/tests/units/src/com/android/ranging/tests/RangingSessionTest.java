@@ -41,6 +41,8 @@ import com.android.ranging.RangingSession;
 import com.android.ranging.RangingSessionImpl;
 import com.android.ranging.RangingTechnology;
 import com.android.ranging.cs.CsParameters;
+import com.android.ranging.fusion.DataFusers;
+import com.android.ranging.fusion.FilteringFusionEngine;
 import com.android.ranging.uwb.UwbParameters;
 
 import com.google.common.util.concurrent.MoreExecutors;
@@ -110,8 +112,14 @@ public class RangingSessionTest {
         when(mMockContext.getPackageManager().hasSystemFeature(PackageManager.FEATURE_UWB))
                 .thenReturn(true);
         when(mMockConfig.getMaxUpdateInterval()).thenReturn(Duration.ZERO);
+        when(mMockConfig.getInitTimeout()).thenReturn(Duration.ZERO);
+        when(mMockConfig.getNoUpdateTimeout()).thenReturn(Duration.ZERO);
+        when(mMockConfig.getUseFusingAlgorithm()).thenReturn(true);
 
-        mSession = new RangingSessionImpl(mMockContext, mMockConfig, mMockUpdateExecutor,
+        mSession = new RangingSessionImpl(
+                mMockContext, mMockConfig,
+                new FilteringFusionEngine(new DataFusers.PassthroughDataFuser()),
+                mMockUpdateExecutor,
                 MoreExecutors.newDirectExecutorService());
 
         for (RangingTechnology technology : RangingTechnology.values()) {

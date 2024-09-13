@@ -18,8 +18,6 @@ package com.android.ranging;
 
 import static com.google.common.util.concurrent.Futures.immediateFailedFuture;
 
-import static java.util.concurrent.TimeUnit.MILLISECONDS;
-
 import android.content.Context;
 import android.os.RemoteException;
 import android.util.Log;
@@ -40,24 +38,20 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.errorprone.annotations.DoNotCall;
 
-import java.time.Instant;
+import java.time.Duration;
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**  Implementation of the Android multi-technology ranging layer */
 public final class RangingSessionImpl implements RangingSession {
 
     private static final String TAG = RangingSessionImpl.class.getSimpleName();
-
-    /**
-     * Default frequency of the task running the periodic update when {@link
-     * RangingConfig#getMaxUpdateInterval} is set to 0.
-     */
-    private static final long DEFAULT_INTERNAL_UPDATE_INTERVAL_MS = 100;
 
     private final Context mContext;
     private final RangingConfig mConfig;
@@ -74,44 +68,27 @@ public final class RangingSessionImpl implements RangingSession {
      * mAdapters is the outer block, otherwise deadlock could occur!
      */
     private final Map<RangingTechnology, RangingAdapter> mAdapters;
+
     /** Must be thread safe */
     private final Map<RangingTechnology, RangingAdapter.Callback> mAdapterListeners;
 
     /** Fusion engine to use for this session. */
     private final FusionEngine mFusionEngine;
 
-    /**
-     * The executor where periodic updater is executed. Periodic updater updates the caller with
-     * new data if available and stops precision ranging if stopping conditions are met. Periodic
-     * updater doesn't report new data if config.getMaxUpdateInterval is 0, in that case updates
-     * happen immediately after new data is received.
-     */
-    private final ScheduledExecutorService mPeriodicUpdateExecutor;
-
-    /**
-     * Executor service for running async tasks such as starting/stopping individual ranging
-     * adapters and fusion algorithm. Most of the results of running the tasks are received via
-     * listeners.
-     */
+    /** Executor for ranging technology adapters. */
     private final ListeningExecutorService mAdapterExecutor;
 
-    /** Last data received that has not yet been reported */
-    private RangingData mLastDataReceived;
+    /** Executor for session timeout handlers. */
+    private final ScheduledExecutorService mTimeoutExecutor;
 
-    /** Timestamp when last data was received */
-    private Instant mLastDataReceivedTime;
-
-    /**
-     * Start time is used to check if we're in a grace period right after starting so we don't stop
-     * ranging before giving it a chance to start producing data.
-     */
-    private Instant mStartTime;
+    /** Future that stops the session due to a timeout. */
+    private ScheduledFuture<?> mPendingTimeout;
 
     public RangingSessionImpl(
             @NonNull Context context,
             @NonNull RangingConfig config,
             @NonNull FusionEngine fusionEngine,
-            @NonNull ScheduledExecutorService periodicUpdateExecutor,
+            @NonNull ScheduledExecutorService timeoutExecutor,
             @NonNull ListeningExecutorService rangingAdapterExecutor
     ) {
         mContext = context;
@@ -124,12 +101,10 @@ public final class RangingSessionImpl implements RangingSession {
         mAdapterListeners = Collections.synchronizedMap(new EnumMap<>(RangingTechnology.class));
         mFusionEngine = fusionEngine;
 
-        mPeriodicUpdateExecutor = periodicUpdateExecutor;
+        mTimeoutExecutor = timeoutExecutor;
         mAdapterExecutor = rangingAdapterExecutor;
 
-        mLastDataReceived = null;
-        mStartTime = Instant.EPOCH;
-        mLastDataReceivedTime = Instant.EPOCH;
+        mPendingTimeout = null;
     }
 
     private @NonNull RangingAdapter newAdapter(
@@ -178,62 +153,19 @@ public final class RangingSessionImpl implements RangingSession {
 
         mFusionEngine.start(new FusionEngineListener());
 
-        mStartTime = Instant.now();
-        Log.i(TAG, "Starting periodic update. Start time: " + mStartTime);
-
-        long periodicUpdateIntervalMs = mConfig.getMaxUpdateInterval().isZero()
-                ? DEFAULT_INTERNAL_UPDATE_INTERVAL_MS
-                : mConfig.getMaxUpdateInterval().toMillis();
-        var unused = mPeriodicUpdateExecutor.scheduleWithFixedDelay(
-                this::performPeriodicUpdate, 0, periodicUpdateIntervalMs, MILLISECONDS);
-    }
-
-    /*
-     * Periodic updater reports new data via the callback and stops precision ranging if
-     * stopping conditions are met.
-     */
-    private void performPeriodicUpdate() {
-        if (!mConfig.getMaxUpdateInterval().isZero()) {
-            reportNewDataIfAvailable();
-        }
-        checkAndStopIfNeeded();
-    }
-
-    /* Reports new data if available via the callback. */
-    private void reportNewDataIfAvailable() {
-        synchronized (mStateMachine) {
-            if (mLastDataReceived != null && mStateMachine.getState() == State.STARTED) {
-                mCallback.onData(mLastDataReceived);
-                mLastDataReceived = null;
-            }
-        }
-    }
-
-    /* Checks if stopping conditions are met and if so, stops precision ranging. */
-    private void checkAndStopIfNeeded() {
-        Instant now = Instant.now();
-        // If we're still inside the init timeout don't stop ranging.
-        if (now.isBefore(mStartTime.plus(mConfig.getInitTimeout()))) {
-            return;
-        }
-
-        // If we didn't receive data from any source for more than the update timeout then stop.
-        if (now.isAfter(mLastDataReceivedTime.plus(mConfig.getNoUpdateTimeout()))) {
-            Log.i(TAG, "No data received for configured timeout of "
-                    + mConfig.getNoUpdateTimeout().toMillis() + " ms, stopping ranging session.");
-            stopPrecisionRanging(Callback.StoppedReason.EMPTY_SESSION_TIMEOUT);
-        }
+        scheduleTimeout(mConfig.getInitTimeout(), Callback.StoppedReason.NO_INITIAL_DATA_TIMEOUT);
     }
 
     @Override
     public void stop() {
-        stopPrecisionRanging(RangingAdapter.Callback.StoppedReason.REQUESTED);
+        stopForReason(RangingAdapter.Callback.StoppedReason.REQUESTED);
     }
 
     /**
-     * Calls stop on all ranging adapters and the fusion algorithm and resets all internal states.
+     * Stop all ranging adapters and reset internal state.
+     * @param reason why the session was stopped.
      */
-    private void stopPrecisionRanging(@Callback.StoppedReason int reason) {
+    private void stopForReason(@Callback.StoppedReason int reason) {
         Log.i(TAG, "stopPrecisionRanging with reason: " + reason);
         synchronized (mStateMachine) {
             if (mStateMachine.getState() == State.STOPPED) {
@@ -242,7 +174,7 @@ public final class RangingSessionImpl implements RangingSession {
             }
             mStateMachine.setState(State.STOPPED);
         }
-        // stop all ranging techs
+        // Stop all ranging technologies.
         synchronized (mAdapters) {
             for (RangingTechnology technology : mAdapters.keySet()) {
                 mAdapters.get(technology).stop();
@@ -254,13 +186,10 @@ public final class RangingSessionImpl implements RangingSession {
 
         mCallback.onStopped(null, reason);
 
-        // reset internal states and objects
-        mLastDataReceivedTime = Instant.EPOCH;
-        mStartTime = Instant.EPOCH;
+        // Reset internal state.
         mAdapters.clear();
         mAdapterListeners.clear();
         mCallback = null;
-        mLastDataReceived = null;
     }
 
     @Override
@@ -335,10 +264,31 @@ public final class RangingSessionImpl implements RangingSession {
         );
     }
 
-//    @VisibleForTesting
-//    public Optional<MultiSensorFinderListener> getFusionAlgorithmListener() {
-//        return fusionAlgorithmListener;
-//    }
+    /* If there is a pending timeout, cancel it. */
+    private synchronized void cancelScheduledTimeout() {
+        if (mPendingTimeout != null) {
+            mPendingTimeout.cancel(false);
+        }
+    }
+
+    /**
+     * Schedule a future that stops the session.
+     *
+     * @param timeout after which the session should be stopped.
+     * @param reason  for stopping the session.
+     */
+    private synchronized void scheduleTimeout(
+            @NonNull Duration timeout, @Callback.StoppedReason int reason
+    ) {
+        cancelScheduledTimeout();
+        mPendingTimeout = mTimeoutExecutor.scheduleWithFixedDelay(
+                () -> {
+                    Log.w(TAG, "Reached scheduled timeout of " + timeout.toMillis());
+                    stopForReason(reason);
+                },
+                0, mConfig.getNoUpdateTimeout().toMillis(), TimeUnit.MILLISECONDS
+        );
+    }
 
     /* Listener implementation for ranging adapter callback. */
     private class AdapterListener implements RangingAdapter.Callback {
@@ -354,10 +304,6 @@ public final class RangingSessionImpl implements RangingSession {
                 if (mStateMachine.getState() == State.STOPPED) {
                     Log.w(TAG, "Received adapter onStarted but ranging session is stopped");
                     return;
-                }
-                if (mStateMachine.transition(State.STARTING, State.STARTED)) {
-                    // The first adapter in the session has started, so start the session.
-                    mCallback.onStarted(null);
                 }
             }
             mFusionEngine.addDataSource(mTechnology);
@@ -395,12 +341,15 @@ public final class RangingSessionImpl implements RangingSession {
                 if (mStateMachine.getState() == State.STOPPED) {
                     return;
                 }
-                mLastDataReceivedTime = Instant.now();
-                if (mConfig.getMaxUpdateInterval().isZero()) {
-                    mCallback.onData(data);
-                } else {
-                    mLastDataReceived = data;
+                cancelScheduledTimeout();
+                if (mStateMachine.transition(State.STARTING, State.STARTED)) {
+                    // This is the first ranging data instance reported by the session, so start it.
+                    mCallback.onStarted(null);
                 }
+                mCallback.onData(data);
+                scheduleTimeout(
+                        mConfig.getNoUpdateTimeout(),
+                        Callback.StoppedReason.NO_UPDATED_DATA_TIMEOUT);
             }
         }
     }

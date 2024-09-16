@@ -56,21 +56,17 @@ public final class RangingSessionImpl implements RangingSession {
     private final Context mContext;
     private final RangingConfig mConfig;
 
-    /** Callback for session events. Invariant: Non-null while a session is ongoing */
+    /** Callback for session events. Invariant: Non-null while a session is ongoing. */
     private RangingSession.Callback mCallback;
 
-    /** Keeps track of state of the ranging session */
+    /** Keeps track of state of the ranging session. <b>Must be synchronized.</b> */
     private final StateMachine<State> mStateMachine;
 
     /**
-     * Ranging adapters used for this session.
-     * Must be thread safe. If you must synchronize on mAdapters and mStateMachine, make sure
-     * mAdapters is the outer block, otherwise deadlock could occur!
+     * Ranging adapters used for this session. <b>Must be synchronized</b>.
+     * {@code mStateMachine} lock must be acquired first if mutual synchronization is necessary.
      */
     private final Map<RangingTechnology, RangingAdapter> mAdapters;
-
-    /** Must be thread safe */
-    private final Map<RangingTechnology, RangingAdapter.Callback> mAdapterListeners;
 
     /** Fusion engine to use for this session. */
     private final FusionEngine mFusionEngine;
@@ -98,7 +94,6 @@ public final class RangingSessionImpl implements RangingSession {
         mCallback = null;
 
         mAdapters = Collections.synchronizedMap(new EnumMap<>(RangingTechnology.class));
-        mAdapterListeners = Collections.synchronizedMap(new EnumMap<>(RangingTechnology.class));
         mFusionEngine = fusionEngine;
 
         mTimeoutExecutor = timeoutExecutor;
@@ -141,18 +136,18 @@ public final class RangingSessionImpl implements RangingSession {
                 continue;
             }
 
-            // Do not overwrite any adapters that were supplied for testing
-            if (!mAdapters.containsKey(technology)) {
-                mAdapters.put(technology, newAdapter(technology, parameters.getRole()));
-            }
+            synchronized (mAdapters) {
+                // Do not overwrite any adapters that were supplied for testing
+                if (!mAdapters.containsKey(technology)) {
+                    mAdapters.put(technology, newAdapter(technology, parameters.getRole()));
+                }
 
-            AdapterListener listener = new AdapterListener(technology);
-            mAdapterListeners.put(technology, listener);
-            mAdapters.get(technology).start(paramsMap.get(technology), listener);
+                mAdapters.get(technology).start(paramsMap.get(technology),
+                        new AdapterListener(technology));
+            }
         }
 
         mFusionEngine.start(new FusionEngineListener());
-
         scheduleTimeout(mConfig.getInitTimeout(), Callback.StoppedReason.NO_INITIAL_DATA_TIMEOUT);
     }
 
@@ -173,23 +168,21 @@ public final class RangingSessionImpl implements RangingSession {
                 return;
             }
             mStateMachine.setState(State.STOPPED);
-        }
-        // Stop all ranging technologies.
-        synchronized (mAdapters) {
-            for (RangingTechnology technology : mAdapters.keySet()) {
-                mAdapters.get(technology).stop();
-                mCallback.onStopped(technology, reason);
+
+            // Stop all ranging technologies.
+            synchronized (mAdapters) {
+                for (RangingTechnology technology : mAdapters.keySet()) {
+                    mAdapters.get(technology).stop();
+                    mCallback.onStopped(technology, reason);
+                }
             }
+
+            // Reset internal state.
+            mFusionEngine.stop();
+            mAdapters.clear();
+            mCallback.onStopped(null, reason);
+            mCallback = null;
         }
-
-        mFusionEngine.stop();
-
-        mCallback.onStopped(null, reason);
-
-        // Reset internal state.
-        mAdapters.clear();
-        mAdapterListeners.clear();
-        mCallback = null;
     }
 
     @Override
@@ -305,17 +298,16 @@ public final class RangingSessionImpl implements RangingSession {
                     Log.w(TAG, "Received adapter onStarted but ranging session is stopped");
                     return;
                 }
+                mFusionEngine.addDataSource(mTechnology);
+                mCallback.onStarted(mTechnology);
             }
-            mFusionEngine.addDataSource(mTechnology);
-            mCallback.onStarted(mTechnology);
         }
 
         @Override
         public void onStopped(@RangingAdapter.Callback.StoppedReason int reason) {
-            synchronized (mAdapters) {
+            synchronized (mStateMachine) {
                 if (mStateMachine.getState() != State.STOPPED) {
                     mAdapters.remove(mTechnology);
-                    mAdapterListeners.remove(mTechnology);
                     mFusionEngine.removeDataSource(mTechnology);
                     mCallback.onStopped(mTechnology, reason);
                 }

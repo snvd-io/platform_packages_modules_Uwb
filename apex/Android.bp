@@ -136,11 +136,32 @@ custom_bootclasspath_fragment {
     },
 }
 
-systemserverclasspath_fragment {
-    name: "com.android.uwb-systemserverclasspath-fragment",
-    standalone_contents: [
-        "service-uwb",
-        //"service-ranging",
+soong_config_module_type {
+    name: "custom_systemserverclasspath_fragment",
+    module_type: "systemserverclasspath_fragment",
+    config_namespace: "bootclasspath",
+    bool_variables: [
+        "release_ranging_stack",
     ],
+    properties: [
+        "standalone_contents",
+    ],
+}
+
+custom_systemserverclasspath_fragment {
+    name: "com.android.uwb-systemserverclasspath-fragment",
+    soong_config_variables: {
+        release_ranging_stack: {
+            standalone_contents: [
+                "service-uwb",
+                "service-ranging",
+            ],
+            conditions_default: {
+                standalone_contents: [
+                    "service-uwb",
+                ],
+            },
+        },
+    },
     apex_available: ["com.android.uwb"],
 }

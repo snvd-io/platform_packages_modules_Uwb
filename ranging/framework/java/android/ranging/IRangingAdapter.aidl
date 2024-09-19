@@ -16,14 +16,8 @@
 
 package android.ranging;
 
-import android.annotation.FlaggedApi;
-import android.annotation.Hide;
-
-
 /**
- * @hide
- */
-@Hide
-@FlaggedApi("com.android.ranging.flags.ranging_stack_enabled")
-public class RangingSession {
+*  @hide
+*/
+interface IRangingAdapter {
 }

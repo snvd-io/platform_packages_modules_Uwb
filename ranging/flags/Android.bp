@@ -21,9 +21,13 @@ package {
 
 aconfig_declarations {
     name: "ranging_aconfig_flags",
-    package: "android.ranging",
-    container: "android.ranging",
+    package: "com.android.ranging.flags",
+    container: "com.android.ranging",
     srcs: ["ranging_flags.aconfig"],
+    visibility: [
+        "//packages/modules/Uwb/ranging:__subpackages__",
+        "//frameworks/base:__subpackages__",
+    ],
 }
 
 java_aconfig_library {

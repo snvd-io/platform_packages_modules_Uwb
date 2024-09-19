@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,42 +18,34 @@ package android.ranging;
 
 import android.annotation.FlaggedApi;
 import android.annotation.Hide;
-import android.annotation.NonNull;
+import android.annotation.SystemApi;
+import android.app.SystemServiceRegistry;
 import android.content.Context;
 
 
 /**
- * This class provides a way to perform ranging operations such as querying the
- * device's capabilities and determining the distance and angle between the local device and a
- * remote device.
- *
- * <p>To get a {@link RangingManager}, call the
- * <code>Context.getSystemService(RangingManager.class)</code>.
+ * Class for performing registration for Ranging service.
  *
  * @hide
  */
-//@SystemApi
-//@SystemService(Context.UWB_SERVICE)
-
-/**
- * @hide
- */
-@Hide
 @FlaggedApi("com.android.ranging.flags.ranging_stack_enabled")
-public final class RangingManager {
-    private static final String TAG = "RangingManager";
-
-    public RangingManager(@NonNull Context context, IRangingAdapter adapter) {
-
-    }
+@SystemApi(client = SystemApi.Client.MODULE_LIBRARIES)
+public class RangingFrameworkInitializer {
+    private RangingFrameworkInitializer() {}
 
     /**
      * @hide
      */
     @Hide
-    @NonNull
     @FlaggedApi("com.android.ranging.flags.ranging_stack_enabled")
-    RangingSession createRangingSession() {
-        return new RangingSession();
+    public static void registerServiceWrappers() {
+        SystemServiceRegistry.registerContextAwareService(
+                Context.RANGING_SERVICE,
+                RangingManager.class,
+                (context, serviceBinder) -> {
+                    IRangingAdapter adapter = IRangingAdapter.Stub.asInterface(serviceBinder);
+                    return new RangingManager(context, adapter);
+                }
+        );
     }
 }

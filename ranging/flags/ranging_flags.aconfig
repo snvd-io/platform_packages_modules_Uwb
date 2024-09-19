@@ -1,5 +1,5 @@
-package: "android.ranging"
-container: "android.ranging"
+package: "com.android.ranging.flags"
+container: "com.android.ranging"
 
 flag {
     name: "ranging_stack_enabled"

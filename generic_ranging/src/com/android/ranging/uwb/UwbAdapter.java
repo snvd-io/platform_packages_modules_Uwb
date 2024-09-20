@@ -230,10 +230,8 @@ public class UwbAdapter implements RangingAdapter {
             Log.i(TAG, "onRangingSuspended: " + reason);
 
             synchronized (mStateMachine) {
-                if (mStateMachine.getState() == State.STOPPED) {
-                    mCallbacks.onStopped(convertReason(reason));
-                    clear();
-                }
+                mCallbacks.onStopped(convertReason(reason));
+                clear();
             }
         }
     }
